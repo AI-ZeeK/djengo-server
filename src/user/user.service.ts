@@ -5,9 +5,10 @@
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { Prisma, User } from '@internal/prisma-main';
+import { ChatType, Prisma, User } from '@internal/prisma-main';
 import {} from 'src/enums/enum';
 import { ADDRESS_TYPE_ENUM, FILE_ENTITY_TYPE_ENUM } from 'prisma/enum';
+import { UserAuthorizedRequest } from 'src/interfaces/user.interface';
 
 type UserWithAvatar<T = {}> = User & {
   avatar_url: string | null;
@@ -105,6 +106,75 @@ export class UserService {
         message: 'User with email exists',
         data: user,
       };
+    } catch (error) {
+      throw new BadRequestException(error.message);
+    }
+  }
+
+  async getUserContacts({
+    req,
+    name,
+  }: {
+    req: UserAuthorizedRequest;
+    name: string;
+  }) {
+    try {
+      const userContacts: any = await this.prisma.user.findMany({
+        where: {
+          user_id: {
+            not: req.user.user_id,
+          },
+          ...(name
+            ? {
+                OR: [
+                  { first_name: { contains: name, mode: 'insensitive' } },
+                  { last_name: { contains: name, mode: 'insensitive' } },
+                  { email: { contains: name, mode: 'insensitive' } },
+                ],
+              }
+            : undefined),
+        },
+        // i want to fins al users, but make sre if  teh usr is already in a direct chat with requesting user, i dont get that user
+
+        include: {
+          chat_participants: {
+            where: {
+              chat: {
+                chat_type: ChatType.DIRECT,
+              },
+              user_id: {
+                not: req.user.user_id,
+              },
+            },
+          },
+        },
+        // select: {
+        //   user_id: true,
+        //   first_name: true,
+        //   last_name: true,
+        //   email: true,
+        // },
+      });
+
+      for (const contact of userContacts) {
+        const fileEntityType = await this.prisma.fileEntityType.findFirst({
+          where: {
+            entity_type: FILE_ENTITY_TYPE_ENUM.USER_AVATAR,
+          },
+        });
+        if (!fileEntityType) {
+          continue;
+        }
+        const avatar = await this.prisma.files.findFirst({
+          where: {
+            entity_id: contact.user_id,
+            entity_type_id: fileEntityType.entity_type_id,
+          },
+        });
+        contact.avatar_url = avatar?.file_url || null;
+      }
+
+      return userContacts;
     } catch (error) {
       throw new BadRequestException(error.message);
     }

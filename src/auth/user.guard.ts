@@ -6,7 +6,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { Request, Response } from 'express';
+import { Request } from 'express';
 import { PrismaService } from 'src/prisma/prisma.service';
 
 @Injectable()
@@ -18,42 +18,43 @@ export class UserGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<Request>();
-    const response = context.switchToHttp().getResponse<Response>();
-    const token = request.cookies?.access_token;
 
-    if (!token) {
-      throw new UnauthorizedException('No access token provided');
+    // Get token from Authorization header
+    const authHeader = request.headers.authorization;
+    if (!authHeader) {
+      throw new UnauthorizedException('No authorization header provided');
+    }
+
+    // Expecting format: "Bearer <token>"
+    const [bearer, token] = authHeader.split(' ');
+    if (bearer !== 'Bearer' || !token) {
+      throw new UnauthorizedException('Invalid authorization header format');
     }
 
     try {
       const payload = await this.jwtService.verifyAsync(token, {
         secret: process.env.JWT_ACCESS_SECRET,
       });
-
+      // console.log('GUARD', payload, 'PAYLOAD');
       const user = await this.prisma.user.findUnique({
         where: {
           user_id: payload.user_id,
         },
       });
+      // console.log('GUARD', user, 'USER');
 
       if (!user) {
         throw new UnauthorizedException('Invalid user ID');
       }
 
-      request['user'] = { user_id: payload.user_id };
-      const newToken = await this.jwtService.signAsync(
-        { user_id: payload.user_id },
-        {
-          secret: process.env.JWT_ACCESS_SECRET,
-          expiresIn: process.env.JWT_ACCESS_EXPIRATION, // Use the same expiration as the original token
-        },
-      );
+      // Attach user to request
+      request['user'] = {
+        user_id: payload.user_id,
+        // Add other user properties you might need
+      };
 
-      response.cookie('access_token', newToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production', // Ensure secure cookies in production
-        sameSite: 'strict',
-      });
+      // No need to set cookies anymore
+      // The frontend is responsible for token management
     } catch (error) {
       throw new UnauthorizedException('Invalid token');
     }

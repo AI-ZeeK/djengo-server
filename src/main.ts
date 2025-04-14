@@ -18,8 +18,9 @@ async function bootstrap() {
   );
   app.setGlobalPrefix('/api/v1');
   app.enableCors({
-    origin: 'http://localhost:5000', // Replace with your frontend URL
+    origin: process.env.FRONTEND_URL || 'http://localhost:5000',
     credentials: true,
+    allowedHeaders: ['Content-Type', 'Authorization'],
   });
 
   // app.useGlobalFilters(new HttpExceptionFilter())

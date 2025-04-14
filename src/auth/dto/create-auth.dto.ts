@@ -182,3 +182,13 @@ export class LogoutDto {
   @IsString()
   user_id: string;
 }
+
+export class RefreshTokenDto {
+  @ApiProperty({
+    type: 'string',
+    example: 'refresh_token',
+  })
+  @IsNotEmpty()
+  @IsString()
+  refresh_token: string;
+}

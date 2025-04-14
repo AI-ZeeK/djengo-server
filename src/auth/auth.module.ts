@@ -8,5 +8,6 @@ import { UserService } from 'src/user/user.service';
 @Module({
   controllers: [AuthController],
   providers: [AuthService, JwtService, MailService, UserService],
+  exports: [AuthService, JwtService],
 })
 export class AuthModule {}

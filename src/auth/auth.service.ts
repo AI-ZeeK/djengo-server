@@ -19,6 +19,7 @@ import { MailService } from 'src/mail/mail.service';
 import { Helpers } from 'src/lib/helper/helpers';
 import { ROLES_ENUM } from 'prisma/enum';
 import { UserService } from 'src/user/user.service';
+import { Response } from 'express';
 
 @Injectable()
 export class AuthService {
@@ -101,6 +102,7 @@ export class AuthService {
       company_id,
       staff_id,
     };
+    console.log('PAYLOAD', payload);
 
     const access_token = this.jwtService.sign(payload, {
       secret: process.env.JWT_ACCESS_SECRET,
@@ -111,11 +113,11 @@ export class AuthService {
       secret: process.env.JWT_REFRESH_SECRET,
       expiresIn: '7d',
     });
-    const hashedToken = await bcrypt.hash(refresh_token, 10);
+    console.log('REFRESH TOKEN', refresh_token);
     await this.prisma.user.update({
       where: { user_id },
       data: {
-        refresh_token: hashedToken,
+        refresh_token: refresh_token,
       },
     });
 
@@ -470,6 +472,31 @@ export class AuthService {
       };
     } catch (error) {
       throw new BadRequestException(error.message);
+    }
+  }
+
+  async refreshToken(refreshToken: string) {
+    try {
+      const payload = await this.jwtService.verifyAsync(refreshToken, {
+        secret: process.env.JWT_REFRESH_SECRET,
+      });
+      // console.log('PAYLOAD', payload);
+      const user = await this.prisma.user.findUnique({
+        where: { user_id: payload.user_id },
+      });
+      // console.log('USER', user);
+      if (!user) {
+        throw new UnauthorizedException('Invalid user');
+      }
+
+      const { access_token } = await this.generateAccessToken({
+        user_id: user.user_id,
+      });
+
+      return { user, access_token };
+    } catch (error) {
+      console.log('ERROR', error);
+      throw new UnauthorizedException('Invalid refresh token');
     }
   }
 }

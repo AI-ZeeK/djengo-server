@@ -1,3 +1,4 @@
+/* eslint-disable prettier/prettier */
 import {
   Controller,
   Get,
@@ -8,6 +9,7 @@ import {
   Delete,
   Req,
   UseGuards,
+  Query,
 } from '@nestjs/common';
 import { UserService } from './user.service';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -31,5 +33,14 @@ export class UserController {
   @Get('email/:email')
   async fetchByEmail(@Param('email') email: string) {
     return this.userService.fetchByEmail({ email });
+  }
+  @UseGuards(UserGuard)
+  @Get('contacts')
+  async getUserContacts(
+    @Req() req: UserAuthorizedRequest,
+    @Query('name') name: string,
+  ) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return await this.userService.getUserContacts({ req, name });
   }
 }

@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
@@ -9,10 +10,24 @@ import { ChatGateway } from './chat/chat.gateway';
 import { ChatService } from './chat/chat.service';
 import { RoleModule } from './role/role.module';
 import { CompanyModule } from './company/company.module';
+import { ChatController } from './chat/chat.controller';
+import { JwtService } from '@nestjs/jwt';
+import { FileModule } from './file/file.module';
 
 @Module({
-  imports: [AuthModule, PrismaModule, UserModule, MailModule, RoleModule, CompanyModule],
-  controllers: [AppController],
-  providers: [AppService, ChatGateway, ChatService],
+  imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+    }),
+    AuthModule,
+    PrismaModule,
+    UserModule,
+    MailModule,
+    RoleModule,
+    CompanyModule,
+    FileModule,
+  ],
+  controllers: [AppController, ChatController],
+  providers: [AppService, ChatGateway, ChatService, JwtService],
 })
 export class AppModule {}
