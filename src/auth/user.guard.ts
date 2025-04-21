@@ -35,14 +35,11 @@ export class UserGuard implements CanActivate {
       const payload = await this.jwtService.verifyAsync(token, {
         secret: process.env.JWT_ACCESS_SECRET,
       });
-      // console.log('GUARD', payload, 'PAYLOAD');
       const user = await this.prisma.user.findUnique({
         where: {
           user_id: payload.user_id,
         },
       });
-      // console.log('GUARD', user, 'USER');
-
       if (!user) {
         throw new UnauthorizedException('Invalid user ID');
       }

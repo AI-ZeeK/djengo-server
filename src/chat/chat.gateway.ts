@@ -1,6 +1,6 @@
+/* eslint-disable prettier/prettier */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable prettier/prettier */
 import {
   ConnectedSocket,
   MessageBody,
@@ -14,6 +14,17 @@ import { Server, Socket } from 'socket.io';
 import { ChatService } from './chat.service';
 import { MessageType, MessageStatus } from '@internal/prisma-main';
 import { Logger } from '@nestjs/common';
+import { NotificationService } from '../notification/notification.service';
+import { UserService } from 'src/user/user.service';
+
+// Define a custom socket type that includes our custom data
+interface ChatSocket extends Socket {
+  data: {
+    userId?: string;
+    activeChats?: Set<string>;
+    chatHomeRoom?: string;
+  };
+}
 
 @WebSocketGateway({
   cors: {
@@ -22,207 +33,97 @@ import { Logger } from '@nestjs/common';
     allowedHeaders: ['Content-Type', 'Authorization'],
   },
   namespace: '/',
-}) // Enable CORS for WebSocket connections
+})
 export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer() server: Server;
   private readonly logger = new Logger(ChatGateway.name);
+  // Track active users in each chat
+  private activeChatUsers: Map<string, Set<string>> = new Map();
 
-  constructor(private chatService: ChatService) {}
-  // async handleConnection(client: Socket) {
-  //   try {
-  //     // Get token from handshake auth
-  //     const token = client.handshake.auth?.token;
+  constructor(
+    private chatService: ChatService,
+    private userService: UserService,
+    private notificationService: NotificationService,
+  ) {}
 
-  //     if (!token) {
-  //       client.disconnect();
-  //       return;
-  //     }
-
-  //     // Verify token
-  //     const payload = await this.jwtService.verifyAsync(token, {
-  //       secret: process.env.JWT_ACCESS_SECRET,
-  //     });
-
-  //     // Store user ID in socket data
-  //     client.data.userId = payload.user_id;
-
-  //     // Join user to their own room for private messages
-  //     client.join(payload.user_id);
-
-  //     console.log(`Client connected: ${client.id}, User: ${payload.user_id}`);
-  //   } catch (error) {
-  //     console.error('Socket authentication error:', error);
-  //     client.disconnect();
-  //   }
-  // }
   // Handle new WebSocket connections
   handleConnection(@ConnectedSocket() client: Socket) {
-    console.log(`Client connected: ${client.id}`);
+    this.logger.log(`Client connected: ${client.id}`);
   }
 
   // Handle WebSocket disconnections
-  handleDisconnect(@ConnectedSocket() client: Socket) {
-    console.log(`Client disconnected: ${client.id}`);
+  handleDisconnect(@ConnectedSocket() client: ChatSocket) {
+    this.logger.log(`Client disconnected: ${client.id}`);
+
+    // Remove user from active chats when they disconnect
+    if (client.data.userId && client.data.activeChats) {
+      for (const chatId of client.data.activeChats) {
+        this.removeUserFromActiveChat(chatId, client.data.userId);
+      }
+    }
+  }
+
+  // Helper method to add a user to the active users in a chat
+  private addUserToActiveChat(chatId: string, userId: string) {
+    if (!this.activeChatUsers.has(chatId)) {
+      this.activeChatUsers.set(chatId, new Set());
+    }
+    this.activeChatUsers.get(chatId)!.add(userId);
+    this.logger.debug(`User ${userId} added to active chat ${chatId}`);
+  }
+
+  // Helper method to remove a user from the active users in a chat
+  private removeUserFromActiveChat(chatId: string, userId: string) {
+    if (this.activeChatUsers.has(chatId)) {
+      this.activeChatUsers.get(chatId)!.delete(userId);
+      this.logger.debug(`User ${userId} removed from active chat ${chatId}`);
+    }
+  }
+
+  // Helper method to check if a user is active in a chat
+  private isUserActiveInChat(chatId: string, userId: string): boolean {
+    if (!this.activeChatUsers.has(chatId)) {
+      return false;
+    }
+    return this.activeChatUsers.get(chatId)!.has(userId);
   }
 
   // Join a chat room and send chat history
   @SubscribeMessage('join_chat')
   async handleJoinChat(
     @MessageBody() data: { chat_id: string; user_id: string },
-    @ConnectedSocket() client: Socket,
+    @ConnectedSocket() client: ChatSocket,
   ) {
     const { chat_id, user_id } = data;
 
-    // Check if the user is a participant
-    const isParticipant = await this.chatService.isParticipant(
-      chat_id,
-      user_id,
-    );
-    if (!isParticipant) {
-      client.emit('error', 'You are not a participant of this chat');
-      return;
-    }
-
-    // Join the chat room
-    client.join(chat_id);
-
-    // Fetch chat history
-    const chatHistory = await this.chatService.getChatHistory(chat_id);
-
-    // Send chat history to the client
-    client.emit('chat_history', chatHistory);
-
-    // Mark messages as read
-    const readMessageIds = await this.chatService.markMessagesAsRead(
-      chat_id,
-      user_id,
-    );
-
-    if (readMessageIds.length > 0) {
-      // Broadcast to all participants that messages have been read
-      this.server.to(chat_id).emit('messages_read', {
+    try {
+      // Check if the user is a participant
+      const isParticipant = await this.chatService.isParticipant(
         chat_id,
         user_id,
-        message_ids: readMessageIds,
-        read_at: new Date(),
-      });
-    }
-
-    console.log(`User ${user_id} joined chat ${chat_id}`);
-  }
-
-  // Send a message to a chat
-  @SubscribeMessage('send_message')
-  async handleSendMessage(
-    @MessageBody()
-    data: { chat_id: string; content: string; type: string; sender_id: string },
-    @ConnectedSocket() client: Socket,
-  ) {
-    const { chat_id, content, type, sender_id } = data;
-
-    try {
-      // Create the message with initial status SENT
-      let message = await this.chatService.sendMessage({
-        chat_id,
-        content,
-        type: type as MessageType,
-        sender_id,
-      });
-
-      message = await this.chatService.updateStatus({
-        message_id: message.message_id,
-        to_status: MessageStatus.SENT,
-      });
-
-      // Broadcast the message to all participants in the chat room
-      this.server.to(chat_id).emit('new_message', message);
-
-      // Check if any recipients are online and update status to DELIVERED
-      try {
-        const participants = await this.chatService.getParticipants(chat_id);
-
-        // Safely check if rooms exists before filtering
-        if (this.server && this.server.sockets && this.server.sockets.adapter) {
-          const onlineParticipants = participants
-            .filter((p) => p.user_id !== sender_id) // Exclude sender
-            .filter((p) => {
-              // Check if this participant is connected
-              const sockets = this.server.sockets.adapter.rooms?.get(p.user_id);
-              return sockets && sockets.size > 0;
-            });
-
-          // If any recipients are online, update status to DELIVERED
-          if (onlineParticipants && onlineParticipants.length > 0) {
-            for (const participant of onlineParticipants) {
-              await this.chatService.updateMessageStatus({
-                recipient_id: participant.user_id,
-                from_status: MessageStatus.SENT,
-                to_status: MessageStatus.DELIVERED,
-              });
-            }
-
-            // Notify sender that message was delivered
-            this.server.to(sender_id).emit('message_status_updated', {
-              message_id: message.message_id,
-              chat_id,
-              status: MessageStatus.DELIVERED,
-              updated_at: new Date(),
-            });
-          }
-        } else {
-          // If we can't check online status, just log it
-          this.logger.warn(
-            'Could not check online status - socket adapter not available',
-          );
-        }
-      } catch (error) {
-        // Log the error but don't fail the whole message send operation
-        this.logger.error(`Error checking online status: ${error.message}`);
+      );
+      if (!isParticipant) {
+        client.emit('error', 'You are not a participant of this chat');
+        return;
       }
 
-      console.log(`User ${sender_id} sent a message to chat ${chat_id}`);
-      return message;
-    } catch (error) {
-      console.error('Error sending message:', error);
-      client.emit('error', 'Failed to send message');
-    }
-  }
+      // Join the socket to the chat room
+      client.join(chat_id);
 
-  @SubscribeMessage('leave_chat')
-  async handleLeaveChat(
-    @MessageBody() data: { chat_id: string; user_id: string },
-    @ConnectedSocket() client: Socket,
-  ) {
-    const { chat_id, user_id } = data;
+      // Store user ID and active chat in socket data
+      client.data.userId = user_id;
+      if (!client.data.activeChats) {
+        // Initialize as a proper Set
+        client.data.activeChats = new Set<string>();
+      }
 
-    // Remove the user from the chat participants
-    await this.chatService.leaveChat(chat_id, user_id);
+      // Type assertion to handle the 'any' type
+      const activeChats = client.data.activeChats as Set<string>;
+      activeChats.add(chat_id);
 
-    // Leave the WebSocket room
-    client.leave(chat_id);
+      // Add user to active chat users
+      this.addUserToActiveChat(chat_id, user_id);
 
-    console.log(`User ${user_id} left chat ${chat_id}`);
-  }
-
-  // Add a new message handler for marking messages as read
-  @SubscribeMessage('mark_messages_read')
-  async handleMarkMessagesRead(
-    @MessageBody() data: { chat_id: string; user_id: string },
-    @ConnectedSocket() client: Socket,
-  ) {
-    const { chat_id, user_id } = data;
-
-    // Check if the user is a participant
-    const isParticipant = await this.chatService.isParticipant(
-      chat_id,
-      user_id,
-    );
-    if (!isParticipant) {
-      client.emit('error', 'You are not a participant of this chat');
-      return;
-    }
-
-    try {
       // Mark messages as read
       const readMessageIds = await this.chatService.markMessagesAsRead(
         chat_id,
@@ -230,170 +131,282 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       );
 
       if (readMessageIds.length > 0) {
-        // Get the messages with their updated status
-        const messagesWithStatus = await Promise.all(
-          readMessageIds.map(async (messageId) => {
-            return await this.chatService.getMessageStatus(messageId);
-          }),
-        );
-
         // Broadcast to all participants that messages have been read
         this.server.to(chat_id).emit('messages_read', {
           chat_id,
           user_id,
           message_ids: readMessageIds,
           read_at: new Date(),
-          messages: messagesWithStatus,
-        });
-
-        // Also emit individual status updates for each message
-        messagesWithStatus.forEach((message) => {
-          this.server.to(chat_id).emit('message_status_updated', {
-            message_id: message.message_id,
-            chat_id,
-            status: message.status,
-            updated_at: new Date(),
-          });
         });
       }
 
-      console.log(`User ${user_id} marked messages as read in chat ${chat_id}`);
+      this.logger.log(`User ${user_id} joined chat ${chat_id}`);
     } catch (error) {
-      console.error('Error marking messages as read:', error);
-      client.emit('error', 'Failed to mark messages as read');
+      this.logger.error(`Error joining chat: ${error.message}`);
+      client.emit('error', `Failed to join chat: ${error.message}`);
     }
   }
 
-  // Add handlers for creating new chats
-  // get creator id from request token
-  // get participant id from client data
-
-  @SubscribeMessage('create_direct_chat')
-  async handleCreateDirectChat(
-    @MessageBody() data: { creator_id: string; participant_id: string },
-    @ConnectedSocket() client: Socket,
+  // Leave a chat room
+  @SubscribeMessage('leave_chat')
+  handleLeaveChat(
+    @MessageBody() data: { chat_id: string; user_id: string },
+    @ConnectedSocket() client: ChatSocket,
   ) {
-    console.log('create_direct_chat', data);
+    const { chat_id, user_id } = data;
 
-    const { creator_id, participant_id } = data;
+    // Leave the socket room
+    client.leave(chat_id);
 
-    try {
-      // Create the direct chat
-      const chat = await this.chatService.createDirectChat({
-        creator_id,
-        participant_id,
-      });
-
-      // Join the chat room
-      client.join(chat.chat_id);
-
-      // Notify the other user if they're online
-      this.server.to(participant_id).emit('new_chat', chat);
-
-      // Send the chat to the creator
-      client.emit('new_chat', chat);
-
-      console.log(
-        `Direct chat created between ${creator_id} and ${participant_id}`,
-      );
-      return chat;
-    } catch (error) {
-      client.emit('error', 'Failed to create direct chat');
-      console.error('Error creating direct chat:', error);
+    // Remove from active chats in socket data
+    if (client.data.activeChats) {
+      client.data.activeChats.delete(chat_id);
     }
+
+    // Remove from active chat users
+    this.removeUserFromActiveChat(chat_id, user_id);
+
+    this.logger.log(`User ${user_id} left chat ${chat_id}`);
   }
 
-  @SubscribeMessage('create_group_chat')
-  async handleCreateGroupChat(
-    @MessageBody()
-    data: { creator_id: string; name: string; participant_ids: string[] },
-    @ConnectedSocket() client: Socket,
-  ) {
-    const { creator_id, name, participant_ids } = data;
-
-    try {
-      // Create the group chat
-      const chat = await this.chatService.createGroupChat(
-        creator_id,
-        name,
-        participant_ids,
-      );
-
-      // Join the chat room
-      client.join(chat.chat_id);
-
-      // Notify all participants
-      participant_ids.forEach((userId) => {
-        if (userId !== creator_id) {
-          this.server.to(userId).emit('new_chat', chat);
-        }
-      });
-
-      // Send the chat to the creator
-      client.emit('new_chat', chat);
-
-      console.log(`Group chat "${name}" created by ${creator_id}`);
-      return chat;
-    } catch (error) {
-      client.emit('error', 'Failed to create group chat');
-      console.error('Error creating group chat:', error);
-    }
-  }
-
-  @SubscribeMessage('get_user_chats')
-  async handleGetUserMessages(
-    @MessageBody() data: { user_id: string },
-    @ConnectedSocket() client: Socket,
-  ) {
-    const { user_id } = data;
-
-    try {
-      const chats = await this.chatService.getChats({ user_id });
-      client.emit('user_chats', chats);
-
-      this.logger.log(`Sent all messages to user ${user_id}`);
-    } catch (error) {
-      this.logger.error(`Error getting user messages: ${error.message}`);
-      client.emit('error', 'Failed to get user messages');
-    }
-  }
-
-  @SubscribeMessage('update_message_status')
-  async handleUpdateMessageStatus(
+  // Send a message to a chat
+  @SubscribeMessage('send_message')
+  async handleSendMessage(
     @MessageBody()
     data: {
-      user_id: string;
+      chat_id: string;
+      content: string;
+      type: string;
+      sender_id: string;
+      duration?: number;
     },
     @ConnectedSocket() client: Socket,
   ) {
-    const { user_id } = data;
-
     try {
-      // Update message status in the database
-      const updatedMessageIds = await this.chatService.updateMessageStatus({
-        recipient_id: user_id,
-        from_status: MessageStatus.SENT,
-        to_status: MessageStatus.DELIVERED,
+      const { chat_id, content, type, sender_id, duration } = data;
+
+      let message = await this.chatService.sendMessage({
+        chat_id,
+        content,
+        type: type as MessageType,
+        sender_id,
+        duration,
       });
 
-      if (updatedMessageIds.length > 0) {
-        // Notify senders that their messages have been delivered
-        updatedMessageIds.forEach(({ message_id, chat_id, sender_id }) => {
-          this.server.to(sender_id).emit('message_status_updated', {
-            message_id,
-            chat_id,
-            status: MessageStatus.DELIVERED,
-            updated_at: new Date(),
-          });
-        });
+      message = await this.chatService.updateStatus({
+        message_id: message.message_id,
+        to_status: MessageStatus.SENT,
+      });
 
-        this.logger.log(
-          `Updated ${updatedMessageIds.length} messages to ${MessageStatus.DELIVERED} for user ${user_id}`,
-        );
+      const participants = await this.chatService.getParticipants({
+        chat_id,
+      });
+
+      this.server.to(chat_id).emit('new_message', message);
+
+      for (const participant of participants) {
+        if (participant.user_id === sender_id) continue;
+
+        const isConnected = this.isUserConnected(participant.user_id);
+
+        if (isConnected) {
+          await this.chatService.updateStatus({
+            message_id: message.message_id,
+            to_status: MessageStatus.DELIVERED,
+          });
+
+          this.server.to(sender_id).emit('message_delivered', {
+            message_id: message.message_id,
+            chat_id,
+            delivered_to: participant.user_id,
+          });
+        } else {
+          console.log('SENDING  CHAT NOIFICATION');
+          const chat_details = await this.chatService.getChatType({
+            chat_id,
+            user_id: participant.user_id,
+          });
+          await this.notificationService.sendChatNotification({
+            chat_id,
+            sender_id: participant.user_id,
+            notification: {
+              title: 'New Message',
+              body: `You have a new ${chat_details?.chat_type.toLowerCase()} message from ${chat_details?.chat_name}`,
+              data: {
+                url: `/overview/chats/${chat_id}`,
+              },
+            },
+          });
+        }
       }
+
+      // After saving the message, also notify users in their chat home rooms
+      const chat = await this.chatService.getChatById(chat_id);
+
+      if (chat) {
+        // Get the last message to send in the update
+        const lastMessage = await this.chatService.getLastMessage(chat_id);
+
+        // For each participant, send an update to their chat home room
+        for (const participant of chat.participants) {
+          if (participant.user_id !== sender_id) {
+            const chatHomeRoom = `chat_home:${participant.user_id}`;
+
+            // Send the update to the user's chat home room
+            this.server.to(chatHomeRoom).emit('chat_update', {
+              type: 'new_message',
+              chat_id: chat_id,
+              message: lastMessage,
+              chat: chat,
+            });
+          }
+        }
+      }
+
+      this.logger.log(
+        `Message sent to chat ${chat_id} by user ${sender_id}: ${content}`,
+      );
     } catch (error) {
-      this.logger.error(`Error updating message status: ${error.message}`);
-      client.emit('error', 'Failed to update message status');
+      this.logger.error(`Error sending message: ${error.message}`);
+      client.emit('error', `Failed to send message: ${error.message}`);
+    }
+  }
+
+  // Helper method to check if a user is connected to any socket
+  private isUserConnected(userId: string): boolean {
+    try {
+      // Safely check if the adapter and rooms exist
+      if (
+        !this.server ||
+        !this.server.sockets ||
+        !this.server.sockets.adapter
+      ) {
+        this.logger.warn(
+          'Socket server, sockets, or adapter is not initialized',
+        );
+        return false;
+      }
+
+      // Check if the rooms Map exists
+      if (!this.server.sockets.adapter.rooms) {
+        this.logger.warn('Socket adapter rooms is not initialized');
+        return false;
+      }
+
+      // Check if the user is in any room with their user ID
+      const sockets = this.server.sockets.adapter.rooms.get(userId);
+      return !!sockets && sockets.size > 0;
+    } catch (error) {
+      this.logger.error(
+        `Error checking if user ${userId} is connected: ${error.message}`,
+      );
+      return false; // Default to false on error
+    }
+  }
+
+  // Mark messages as read
+  @SubscribeMessage('mark_messages_read')
+  async handleMarkMessagesRead(
+    @MessageBody() data: { chat_id: string; user_id: string },
+    @ConnectedSocket() client: Socket,
+  ) {
+    try {
+      const { chat_id, user_id } = data;
+
+      // Mark messages as read in the database
+      const readMessageIds = await this.chatService.markMessagesAsRead(
+        chat_id,
+        user_id,
+      );
+
+      if (readMessageIds.length > 0) {
+        // Broadcast to all participants that messages have been read
+        this.server.to(chat_id).emit('messages_read', {
+          chat_id,
+          user_id,
+          message_ids: readMessageIds,
+          read_at: new Date(),
+        });
+      }
+
+      this.logger.log(
+        `User ${user_id} marked messages as read in chat ${chat_id}`,
+      );
+    } catch (error) {
+      this.logger.error(`Error marking messages as read: ${error.message}`);
+      client.emit('error', `Failed to mark messages as read: ${error.message}`);
+    }
+  }
+
+  // Get user chats
+  @SubscribeMessage('get_user_chats')
+  async handleGetUserChats(
+    @MessageBody() data: { user_id: string },
+    @ConnectedSocket() client: Socket,
+  ) {
+    try {
+      const { user_id } = data;
+
+      // Get all chats for the user
+      const chats = await this.chatService.getChats({ user_id });
+
+      // Send the chats to the client
+      client.emit('user_chats', chats);
+
+      this.logger.log(`Sent chats to user ${user_id}`);
+    } catch (error) {
+      this.logger.error(`Error getting user chats: ${error.message}`);
+      client.emit('error', `Failed to get chats: ${error.message}`);
+    }
+  }
+
+  @SubscribeMessage('join_chat_home')
+  async handleJoinChatHome(
+    @MessageBody() data: { user_id: string },
+    @ConnectedSocket() client: Socket,
+  ) {
+    try {
+      const { user_id } = data;
+
+      // Join a room specific to this user's chat home
+      const roomName = `chat_home:${user_id}`;
+      await client.join(roomName);
+
+      this.logger.log(`User ${user_id} joined chat home room: ${roomName}`);
+
+      // Store the user's chat home room in the client data
+      client.data.chatHomeRoom = roomName;
+
+      // Get all chats for the user to initialize the view
+      const chats = await this.chatService.getChats({ user_id });
+
+      // Send the chats to the client
+      client.emit('user_chats', chats);
+    } catch (error) {
+      this.logger.error(`Error joining chat home: ${error.message}`);
+      client.emit('error', `Failed to join chat home: ${error.message}`);
+    }
+  }
+
+  @SubscribeMessage('leave_chat_home')
+  async handleLeaveChatHome(
+    @MessageBody() data: { user_id: string },
+    @ConnectedSocket() client: Socket,
+  ) {
+    try {
+      const { user_id } = data;
+
+      // Leave the chat home room
+      const roomName = `chat_home:${user_id}`;
+      await client.leave(roomName);
+
+      this.logger.log(`User ${user_id} left chat home room: ${roomName}`);
+
+      // Remove the chat home room from client data
+      delete client.data.chatHomeRoom;
+    } catch (error) {
+      this.logger.error(`Error leaving chat home: ${error.message}`);
+      client.emit('error', `Failed to leave chat home: ${error.message}`);
     }
   }
 }

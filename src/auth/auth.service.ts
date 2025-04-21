@@ -8,6 +8,7 @@ import {
   BadGatewayException,
   BadRequestException,
   Injectable,
+  Logger,
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -23,6 +24,7 @@ import { Response } from 'express';
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
   constructor(
     private jwtService: JwtService,
     private prisma: PrismaService,
@@ -102,7 +104,6 @@ export class AuthService {
       company_id,
       staff_id,
     };
-    console.log('PAYLOAD', payload);
 
     const access_token = this.jwtService.sign(payload, {
       secret: process.env.JWT_ACCESS_SECRET,
@@ -113,7 +114,6 @@ export class AuthService {
       secret: process.env.JWT_REFRESH_SECRET,
       expiresIn: '7d',
     });
-    console.log('REFRESH TOKEN', refresh_token);
     await this.prisma.user.update({
       where: { user_id },
       data: {
@@ -342,9 +342,6 @@ export class AuthService {
           }
         },
       );
-      console.log('USER----7777', user);
-      console.log('COMPANY ID----8888', company_id);
-      console.log('STAFF ID----9999', staff_id);
       const { access_token } = await this.generateAccessToken({
         user_id: user!.user_id,
         company_id,
@@ -428,6 +425,12 @@ export class AuthService {
         where: { user_id },
         data: { refresh_token: '' },
       });
+      await this.prisma.pushSubscription.deleteMany({
+        where: { user_id },
+      });
+      this.logger.log(
+        `User ${user_id} logged out and push subscriptions cleared`,
+      );
       return { message: 'Logout successful' };
     } catch (error) {
       throw new BadRequestException(error.message);
@@ -436,7 +439,6 @@ export class AuthService {
 
   async sendOtp({ token }: { token: string }) {
     try {
-      console.log('TOPKENNN');
       const payload = await this.jwtService.verifyAsync(token, {
         secret: process.env.JWT_ACCESS_SECRET,
       });
@@ -452,7 +454,6 @@ export class AuthService {
           numbers: true,
         },
       });
-      console.log('OTP', otp);
       await this.prisma.verification.create({
         data: {
           user_id: payload.user_id,
@@ -475,11 +476,21 @@ export class AuthService {
     }
   }
 
-  async refreshToken(refreshToken: string) {
+  async refreshToken(user_id: string) {
     try {
-      const payload = await this.jwtService.verifyAsync(refreshToken, {
-        secret: process.env.JWT_REFRESH_SECRET,
+      const refreshToken = await this.prisma.user.findUnique({
+        where: { user_id },
+        select: { refresh_token: true },
       });
+      if (!refreshToken) {
+        throw new UnauthorizedException('Invalid refresh token');
+      }
+      const payload = await this.jwtService.verifyAsync(
+        refreshToken.refresh_token,
+        {
+          secret: process.env.JWT_REFRESH_SECRET,
+        },
+      );
       // console.log('PAYLOAD', payload);
       const user = await this.prisma.user.findUnique({
         where: { user_id: payload.user_id },

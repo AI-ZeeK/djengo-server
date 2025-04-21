@@ -13,6 +13,7 @@ import { CompanyModule } from './company/company.module';
 import { ChatController } from './chat/chat.controller';
 import { JwtService } from '@nestjs/jwt';
 import { FileModule } from './file/file.module';
+import { NotificationModule } from './notification/notification.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { FileModule } from './file/file.module';
     RoleModule,
     CompanyModule,
     FileModule,
+    NotificationModule,
   ],
   controllers: [AppController, ChatController],
   providers: [AppService, ChatGateway, ChatService, JwtService],

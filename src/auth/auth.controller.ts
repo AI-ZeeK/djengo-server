@@ -80,7 +80,7 @@ export class AuthController {
 
   @Post('/refresh')
   async refreshAccessToken(@Body() data: RefreshTokenDto) {
-    return await this.authService.refreshToken(data.refresh_token);
+    return await this.authService.refreshToken(data.user_id);
   }
 
   @Post('/logout')

@@ -3,7 +3,7 @@ import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { v2 as cloudinary } from 'cloudinary';
 import { Readable } from 'stream';
-import * as Multer from 'multer';
+import { Express } from 'express';
 
 @Injectable()
 export class FileService {
@@ -26,7 +26,7 @@ export class FileService {
    * @returns URL of the uploaded file
    */
   async uploadFile(
-    file: Multer.File,
+    file: Express.Multer.File,
     fileType: 'image' | 'audio',
     userId: string,
   ): Promise<string> {

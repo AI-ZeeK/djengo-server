@@ -190,5 +190,5 @@ export class RefreshTokenDto {
   })
   @IsNotEmpty()
   @IsString()
-  refresh_token: string;
+  user_id: string;
 }

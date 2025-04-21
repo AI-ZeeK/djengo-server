@@ -15,10 +15,14 @@ import { FileService } from './file.service';
 import { UserGuard } from 'src/auth/user.guard';
 import { UserAuthorizedRequest } from '../interfaces/user.interface';
 import * as Multer from 'multer';
+import { SupabaseService } from './supabase.service';
 
 @Controller('files')
 export class FileController {
-  constructor(private readonly fileService: FileService) {}
+  constructor(
+    private readonly fileService: FileService,
+    private readonly supabaseService: SupabaseService,
+  ) {}
 
   @UseGuards(UserGuard)
   @Post('upload')
@@ -32,7 +36,7 @@ export class FileController {
         ],
       }),
     )
-    file: Multer.File,
+    file: Express.Multer.File,
     @Req() req: UserAuthorizedRequest,
   ) {
     const userId = req.user.user_id;
@@ -57,7 +61,7 @@ export class FileController {
         ],
       }),
     )
-    file: Multer.File,
+    file: Express.Multer.File,
     @Req() req: UserAuthorizedRequest,
   ) {
     const userId = req.user.user_id;
@@ -78,11 +82,15 @@ export class FileController {
         ],
       }),
     )
-    file: Multer.File,
+    file: Express.Multer.File,
     @Req() req: UserAuthorizedRequest,
   ) {
     const userId = req.user.user_id;
-    const fileUrl = await this.fileService.uploadFile(file, 'audio', userId);
+    const fileUrl = await this.supabaseService.uploadFile(
+      file,
+      'audio',
+      userId,
+    );
 
     return { url: fileUrl, duration: 0 }; // Return duration as 0, will be updated by client
   }

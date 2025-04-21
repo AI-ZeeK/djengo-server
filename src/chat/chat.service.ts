@@ -1,12 +1,16 @@
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable prettier/prettier */
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import {
   Chat,
   ChatType,
-  Message,
   MessageStatus,
   MessageType,
 } from '@internal/prisma-main';
@@ -186,14 +190,14 @@ export class ChatService {
       // Format the chat data for the client
       const formattedChats = chats.map((chat) => {
         // For direct chats, set the name to the other participant's name
-        let chatName = chat.name;
+        let name = chat.name;
         if (chat.chat_type === 'DIRECT') {
           const otherParticipant = chat.participants.find(
             (p) => p.user_id !== user_id,
           );
           if (otherParticipant) {
             const user = otherParticipant.user;
-            chatName = `${user.first_name} ${user.last_name}`.trim();
+            name = `${user.first_name} ${user.last_name}`.trim();
           }
         }
 
@@ -202,7 +206,7 @@ export class ChatService {
 
         return {
           ...chat,
-          name: chatName,
+          name,
           unread_count: unreadCount,
         };
       });
@@ -215,13 +219,16 @@ export class ChatService {
   }
 
   async isParticipant(chat_id: string, user_id: string): Promise<boolean> {
-    const participant = await this.prisma.chatParticipant.findFirst({
+    const participant = await this.prisma.chatParticipant.findUnique({
       where: {
-        chat_id,
-        user_id,
+        chat_id_user_id: {
+          chat_id,
+          user_id,
+        },
       },
     });
-    return !!participant; // Returns true if the user is a participant
+
+    return !!participant;
   }
 
   async leaveChat(chat_id: string, user_id: string) {
@@ -240,41 +247,55 @@ export class ChatService {
     type: MessageType;
     duration?: number; // For audio messages
   }) {
-    const { chat_id, sender_id, content, type, duration } = data;
+    try {
+      const { chat_id, sender_id, content, type, duration } = data;
 
+      // Validate content based on type
+      if (type === MessageType.IMAGE && !this.isValidImageUrl(content)) {
+        throw new BadRequestException('Invalid image URL or format');
+      }
 
-    const messageData: any = {
-      chat_id,
-      sender_id,
-      content,
-      type,
-      status: MessageStatus.SENT,
-    };
+      if (type === MessageType.AUDIO && !this.isAudioFile(content)) {
+        throw new BadRequestException('Invalid audio content');
+      }
 
-    // Add duration for audio messages
-    if (type === MessageType.AUDIO && duration) {
-      messageData.duration = duration;
-    }
-
-    const message = await this.prisma.message.create({
-      data: messageData,
-      include: {
-        sender: true, // Include sender details
-      },
-    });
-
-    // Increment unread count for other participants
-    await this.prisma.chatParticipant.updateMany({
-      where: {
+      // Save the message to the database with appropriate fields
+      const messageData: any = {
         chat_id,
-        user_id: { not: sender_id }, // Exclude the sender
-      },
-      data: {
-        unread_count: { increment: 1 },
-      },
-    });
+        sender_id,
+        content,
+        type,
+        status: MessageStatus.SENT,
+      };
 
-    return message;
+      // Add duration for audio messages
+      if (type === MessageType.AUDIO && duration) {
+        messageData.duration = duration;
+      }
+
+      const message = await this.prisma.message.create({
+        data: messageData,
+        include: {
+          sender: true, // Include sender details
+        },
+      });
+
+      // Increment unread count for other participants
+      await this.prisma.chatParticipant.updateMany({
+        where: {
+          chat_id,
+          user_id: { not: sender_id }, // Exclude the sender
+        },
+        data: {
+          unread_count: { increment: 1 },
+        },
+      });
+
+      return message;
+    } catch (error) {
+      this.logger.error(`Error sending message: ${error.message}`);
+      throw new Error('Failed to send message');
+    }
   }
 
   // Helper methods for content validation
@@ -297,82 +318,59 @@ export class ChatService {
     }
   }
 
-  private isValidAudioContent(content: string): boolean {
-    // Check if it's a valid audio URL or base64 content
-    try {
-      const parsedUrl = new URL(content);
-      const path = parsedUrl.pathname.toLowerCase();
-      return (
-        path.endsWith('.mp3') ||
-        path.endsWith('.wav') ||
-        path.endsWith('.ogg') ||
-        path.endsWith('.m4a')
-      );
-    } catch {
-      // If it's a base64 audio
-      return content.startsWith('data:audio/');
-    }
+  private isAudioFile(path: string): boolean {
+    const hasAudioExtension =
+      path.endsWith('.mp3') ||
+      path.endsWith('.wav') ||
+      path.endsWith('.ogg') ||
+      path.endsWith('.webm') ||
+      path.endsWith('.m4a');
+
+    const isSupabaseAudio =
+      path.includes('supabase') && path.includes('/audio/');
+
+    return hasAudioExtension || isSupabaseAudio;
   }
 
-  async markMessagesAsRead(
-    chat_id: string,
-    user_id: string,
-  ): Promise<string[]> {
-    try {
-      // Get all messages in the chat that:
-      // 1. Haven't been read by this user yet
-      // 2. Were not sent by this user (no need to mark your own messages as read)
-      const unreadMessages = await this.prisma.message.findMany({
-        where: {
-          chat_id,
-          sender_id: {
-            not: user_id, // Only mark messages from other users as read
-          },
-          read_receipts: {
-            none: {
-              user_id, // No read receipt from this user yet
-            },
-          },
+  async markMessagesAsRead(chat_id: string, user_id: string) {
+    // Find all unread messages in the chat that were not sent by the user
+    const messages = await this.prisma.message.findMany({
+      where: {
+        chat_id,
+        sender_id: {
+          not: user_id,
         },
-        select: {
-          message_id: true,
+        status: {
+          in: [MessageStatus.SENT, MessageStatus.DELIVERED],
         },
-      });
+      },
+      select: {
+        message_id: true,
+        sender_id: true,
+      },
+    });
 
-      const messageIds = unreadMessages.map((msg) => msg.message_id);
-
-      if (messageIds.length > 0) {
-        // Create read receipts for all unread messages
-        await this.prisma.messageRead.createMany({
-          data: messageIds.map((message_id) => ({
-            message_id,
-            user_id,
-            read_at: new Date(),
-          })),
-          skipDuplicates: true, // Prevent unique constraint violations
-        });
-
-        // Reset unread count for this participant
-        await this.prisma.chatParticipant.updateMany({
-          where: {
-            chat_id,
-            user_id: user_id,
-          },
-          data: {
-            unread_count: 0,
-          },
-        });
-      }
-
-      // Return the IDs of the messages that were marked as read
-      return messageIds;
-    } catch (error) {
-      this.logger.error(
-        `Error marking messages as read: ${error.message}`,
-        error.stack,
-      );
-      throw new Error('Failed to mark messages as read');
+    if (messages.length === 0) {
+      return [];
     }
+
+    // Update all messages to read status
+    await this.prisma.message.updateMany({
+      where: {
+        message_id: {
+          in: messages.map((m) => m.message_id),
+        },
+      },
+      data: {
+        status: MessageStatus.READ,
+      },
+    });
+
+    // Return the message IDs that were marked as read
+    return messages.map((m) => ({
+      message_id: m.message_id,
+      sender_id: m.sender_id,
+    }));
   }
 
   // Add methods to create new chats
@@ -384,6 +382,10 @@ export class ChatService {
     participant_id: string;
   }): Promise<Chat> {
     try {
+      if (!participant_id || !creator_id)
+        throw new BadRequestException('Chat Create constrainsts not met');
+      console.log('CREATOR_ID', creator_id);
+      console.log('participant_id', participant_id);
       // Check if a direct chat already exists between these users
       const existingChat = await this.prisma.chat.findFirst({
         where: {
@@ -413,9 +415,49 @@ export class ChatService {
       const newChat = await this.prisma.chat.create({
         data: {
           chat_type: 'DIRECT',
-          participants: {
-            create: [{ user_id: creator_id }, { user_id: participant_id }],
+        },
+        select: {
+          chat_id: true,
+        },
+      });
+      const participant = await this.prisma.chatParticipant.upsert({
+        where: {
+          chat_id_user_id: {
+            chat_id: newChat.chat_id,
+            user_id: creator_id,
           },
+        },
+        update: {
+          is_admin: true,
+        },
+        create: {
+          chat_id: newChat.chat_id,
+          user_id: creator_id,
+          is_admin: true,
+        },
+      });
+      const participant2 = await this.prisma.chatParticipant.upsert({
+        where: {
+          chat_id_user_id: {
+            chat_id: newChat.chat_id,
+            user_id: participant_id,
+          },
+        },
+        update: {
+          is_admin: true,
+        },
+        create: {
+          chat_id: newChat.chat_id,
+          user_id: participant_id,
+          is_admin: true,
+        },
+      });
+      console.log('newChat', newChat);
+      console.log('participant', participant);
+      console.log('participant2', participant2);
+      const chat = await this.prisma.chat.findFirst({
+        where: {
+          chat_id: newChat.chat_id,
         },
         include: {
           participants: {
@@ -432,8 +474,7 @@ export class ChatService {
           },
         },
       });
-
-      return newChat;
+      return chat!;
     } catch (error) {
       this.logger.error(`Error creating direct chat: ${error.message}`);
       throw new Error('Failed to create direct chat');
@@ -441,62 +482,56 @@ export class ChatService {
   }
 
   async createGroupChat(
-    creatorId: string,
+    creator_id: string,
     name: string,
-    participantIds: string[],
-  ): Promise<Chat> {
+    participant_ids: string[],
+  ) {
+    return this.createChat({
+      chat_type: ChatType.GROUP,
+      creator_id,
+      participant_ids,
+      name,
+    });
+  }
+  async getChatType({ chat_id, user_id }: { chat_id: string; user_id }) {
     try {
-      // Ensure the creator is included in participants
-      if (!participantIds.includes(creatorId)) {
-        participantIds.push(creatorId);
-      }
-
-      // Create a new group chat
-      const newChat = await this.prisma.chat.create({
-        data: {
-          chat_type: ChatType.GROUP,
-          name: name,
-          participants: {
-            create: participantIds.map((userId) => ({
-              user_id: userId,
-              is_admin: userId === creatorId, // Make the creator an admin
-            })),
-          },
+      const chat = await this.prisma.chat.findUnique({
+        where: {
+          chat_id,
         },
         include: {
           participants: {
+            where: {
+              user_id,
+            },
             include: {
-              user: {
-                select: {
-                  user_id: true,
-                  first_name: true,
-                  last_name: true,
-                  email: true,
-                },
-              },
+              user: true,
             },
           },
         },
       });
 
-      // Create a system message indicating the group was created
-      await this.prisma.message.create({
-        data: {
-          chat_id: newChat.chat_id,
-          sender_id: creatorId,
-          content: `${name} group was created`,
-          type: MessageType.SYSTEM,
-        },
-      });
+      if (!chat) throw new NotFoundException();
 
-      return newChat;
+      const chat_name =
+        chat.chat_type === 'DIRECT'
+          ? chat.participants[0]?.user?.first_name
+            ? `${chat.participants[0]?.user?.first_name} ${chat.participants[0]?.user?.last_name}`
+            : chat.participants[0]?.user?.email ||
+              chat.participants[0]?.user?.phone_number
+          : chat?.name;
+
+      return {
+        chat_type: chat.chat_type,
+        chat_name,
+      };
     } catch (error) {
-      this.logger.error(`Error creating group chat: ${error.message}`);
-      throw new Error('Failed to create group chat');
+      this.logger.error(`Error updating message status: ${error.message}`);
+      throw new Error('Failed to update message status');
     }
   }
 
-  async getParticipants(chat_id: string) {
+  async getParticipants({ chat_id }: { chat_id: string }) {
     const participants = await this.prisma.chatParticipant.findMany({
       where: {
         chat_id,
@@ -599,8 +634,30 @@ export class ChatService {
     }
   }
 
+  async getChat({ chat_id }: { chat_id: string }) {
+    try {
+      const chat = await this.prisma.chat.findUnique({
+        where: {
+          chat_id,
+        },
+        include: {
+          participants: {
+            include: {
+              user: true,
+            },
+          },
+        },
+      });
+
+      return chat;
+    } catch (error) {
+      this.logger.error(`Error getting chat: ${error.message}`);
+      throw new Error('Failed to get chat');
+    }
+  }
+
   // Add this method to get message status in real-time
-  async getMessageStatus(message_id: string) {
+  async getMessageStatus({ message_id }: { message_id: string }) {
     try {
       const message = await this.prisma.message.findUnique({
         where: {
@@ -705,5 +762,209 @@ export class ChatService {
     });
 
     return message;
+  }
+
+  async createChat({
+    chat_type,
+    creator_id,
+    participant_ids,
+    name,
+  }: {
+    chat_type: ChatType;
+    creator_id: string;
+    participant_ids: string[];
+    name?: string;
+  }) {
+    try {
+      this.logger.log(
+        `Creating chat with type ${chat_type} and ${participant_ids.length} participants`,
+      );
+
+      // Ensure creator is included in participants
+      if (!participant_ids.includes(creator_id)) {
+        participant_ids.push(creator_id);
+      }
+
+      // Remove any duplicate participant IDs
+      const uniqueParticipantIds = [...new Set(participant_ids)];
+
+      this.logger.log(
+        `Creating chat with ${uniqueParticipantIds.length} unique participants`,
+      );
+
+      // Create a new chat with participants
+      const newChat = await this.prisma.chat.create({
+        data: {
+          chat_type,
+          name,
+          participants: {
+            create: uniqueParticipantIds.map((user_id) => ({
+              user_id,
+            })),
+          },
+        },
+        include: {
+          participants: {
+            include: {
+              user: {
+                select: {
+                  user_id: true,
+                  first_name: true,
+                  last_name: true,
+                  email: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      this.logger.log(
+        `Created chat ${newChat.chat_id} with ${newChat.participants.length} participants`,
+      );
+      return newChat;
+    } catch (error) {
+      this.logger.error(`Error creating chat: ${error.message}`);
+      throw new BadRequestException(`Failed to create chat: ${error.message}`);
+    }
+  }
+
+  async getChatMessages(chat_id: string) {
+    return this.prisma.message.findMany({
+      where: {
+        chat_id,
+      },
+      orderBy: {
+        created_at: 'asc',
+      },
+      include: {
+        sender: {
+          select: {
+            user_id: true,
+            first_name: true,
+            last_name: true,
+            email: true,
+          },
+        },
+      },
+    });
+  }
+
+  /**
+   * Get the last message for a chat
+   * @param chat_id The chat ID
+   * @returns The last message for the chat
+   */
+  async getLastMessage(chat_id: string) {
+    try {
+      const message = await this.prisma.message.findFirst({
+        where: {
+          chat_id,
+        },
+        orderBy: {
+          created_at: 'desc',
+        },
+        include: {
+          sender: {
+            select: {
+              user_id: true,
+              first_name: true,
+              last_name: true,
+              email: true,
+            },
+          },
+        },
+      });
+
+      return message;
+    } catch (error) {
+      this.logger.error(`Error getting last message: ${error.message}`);
+      throw new BadRequestException(
+        `Failed to get last message: ${error.message}`,
+      );
+    }
+  }
+
+  /**
+   * Get the last messages for multiple chats
+   * @param chat_ids Array of chat IDs
+   * @returns Object with chat_id as key and last message as value
+   */
+  async getLastMessagesForChats(chat_ids: string[]) {
+    try {
+      // For each chat, get the most recent message
+      const lastMessages = await Promise.all(
+        chat_ids.map(async (chat_id) => {
+          const message = await this.getLastMessage(chat_id);
+          return { chat_id, message };
+        }),
+      );
+
+      // Convert to an object with chat_id as key
+      const lastMessagesMap = lastMessages.reduce(
+        (acc, { chat_id, message }) => {
+          acc[chat_id] = message;
+          return acc;
+        },
+        {},
+      );
+
+      return lastMessagesMap;
+    } catch (error) {
+      this.logger.error(`Error getting last messages: ${error.message}`);
+      throw new BadRequestException(
+        `Failed to get last messages: ${error.message}`,
+      );
+    }
+  }
+
+  /**
+   * Get a chat by ID
+   * @param chat_id The chat ID
+   * @returns The chat
+   */
+  async getChatById(chat_id: string) {
+    try {
+      const chat = await this.prisma.chat.findUnique({
+        where: {
+          chat_id,
+        },
+        include: {
+          participants: {
+            include: {
+              user: {
+                select: {
+                  user_id: true,
+                  first_name: true,
+                  last_name: true,
+                  email: true,
+                },
+              },
+            },
+          },
+          messages: {
+            take: 1,
+            orderBy: {
+              created_at: 'desc',
+            },
+            include: {
+              sender: {
+                select: {
+                  user_id: true,
+                  first_name: true,
+                  last_name: true,
+                  email: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      return chat;
+    } catch (error) {
+      this.logger.error(`Error getting chat by ID: ${error.message}`);
+      throw new BadRequestException(`Failed to get chat: ${error.message}`);
+    }
   }
 }
