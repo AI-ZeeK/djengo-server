@@ -16,27 +16,16 @@ export class SupabaseService {
     );
 
     if (!supabaseUrl || !supabaseServiceKey) {
-      this.logger.error('Missing Supabase environment variables');
+      this.logger.error('Missing Supabase configuration');
+      return;
     }
 
-    // Create client with explicit service role
-    this.supabase = createClient(supabaseUrl!, supabaseServiceKey!, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-      },
-      global: {
-        headers: {
-          Authorization: `Bearer ${supabaseServiceKey}`,
-          apikey: supabaseServiceKey || '',
-        },
-      },
-    });
-    // Ensure the bucket exists when the service starts
-    this.ensureBucketExists().catch((err) => {
-      this.logger.error(
-        `Failed to ensure bucket exists: ${err?.message || 'Unknown error'}`,
-      );
+    this.supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Ensure the bucket exists when the service is initialized
+    this.ensureBucketExists().catch((err: Error | unknown) => {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      this.logger.error(`Failed to ensure bucket exists: ${errorMessage}`);
     });
     this.logger.log('Supabase client initialized');
   }
