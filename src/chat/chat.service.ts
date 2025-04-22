@@ -855,7 +855,7 @@ export class ChatService {
    * @param chat_id The chat ID
    * @returns The last message for the chat
    */
-  async getLastMessage(chat_id: string) {
+  async getLastMessage({ chat_id }: { chat_id: string }) {
     try {
       const message = await this.prisma.message.findFirst({
         where: {
@@ -895,7 +895,7 @@ export class ChatService {
       // For each chat, get the most recent message
       const lastMessages = await Promise.all(
         chat_ids.map(async (chat_id) => {
-          const message = await this.getLastMessage(chat_id);
+          const message = await this.getLastMessage({ chat_id });
           return { chat_id, message };
         }),
       );

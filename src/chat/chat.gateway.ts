@@ -55,10 +55,34 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   handleDisconnect(@ConnectedSocket() client: ChatSocket) {
     this.logger.log(`Client disconnected: ${client.id}`);
 
-    // Remove user from active chats when they disconnect
-    if (client.data.userId && client.data.activeChats) {
-      for (const chatId of client.data.activeChats) {
-        this.removeUserFromActiveChat(chatId, client.data.userId);
+    // Update user status to offline when they disconnect
+    if (client.data.userId) {
+      this.userService
+        .updateUserStatus(client.data.userId, false)
+        .then(() => {
+          // Get all chats for this user
+          return this.chatService.getChats({ user_id: client.data.userId! });
+        })
+        .then((userChats) => {
+          // For each chat, notify other participants about status change
+          for (const chat of userChats) {
+            // Broadcast to all participants in this chat
+            this.server.to(chat.chat_id).emit('user_status_update', {
+              user_id: client.data.userId,
+              status: 'offline',
+              timestamp: new Date(),
+            });
+          }
+        })
+        .catch((error) => {
+          this.logger.error(`Error updating offline status: ${error.message}`);
+        });
+
+      // Remove user from active chats when they disconnect
+      if (client.data.activeChats) {
+        for (const chatId of client.data.activeChats) {
+          this.removeUserFromActiveChat(chatId, client.data.userId);
+        }
       }
     }
   }
@@ -117,7 +141,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         client.data.activeChats = new Set<string>();
       }
 
-      // Type assertion to handle the 'any' type
+      // @ts-ignore: Type assertion is used for clarity
       const activeChats = client.data.activeChats as Set<string>;
       activeChats.add(chat_id);
 
@@ -202,26 +226,42 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         chat_id,
       });
 
+      // Send the new message to everyone in the chat room
       this.server.to(chat_id).emit('new_message', message);
 
+      // Get the chat details to include with updates
+      const chat = await this.chatService.getChatById(chat_id);
+
+      // For each participant, handle message delivery and notifications
       for (const participant of participants) {
         if (participant.user_id === sender_id) continue;
 
         const isConnected = this.isUserConnected(participant.user_id);
 
         if (isConnected) {
+          // Update message status to delivered
           await this.chatService.updateStatus({
             message_id: message.message_id,
             to_status: MessageStatus.DELIVERED,
           });
 
+          // Notify sender that message was delivered
           this.server.to(sender_id).emit('message_delivered', {
             message_id: message.message_id,
             chat_id,
             delivered_to: participant.user_id,
           });
+
+          // Send chat update to the participant
+          this.server.to(participant.user_id).emit('chat_update', {
+            type: 'new_message',
+            chat_id: chat_id,
+            message: message,
+            chat: chat,
+          });
         } else {
-          console.log('SENDING  CHAT NOIFICATION');
+          // Send push notification if user is not connected
+          console.log('SENDING CHAT NOTIFICATION');
           const chat_details = await this.chatService.getChatType({
             chat_id,
             user_id: participant.user_id,
@@ -237,29 +277,6 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
               },
             },
           });
-        }
-      }
-
-      // After saving the message, also notify users in their chat home rooms
-      const chat = await this.chatService.getChatById(chat_id);
-
-      if (chat) {
-        // Get the last message to send in the update
-        const lastMessage = await this.chatService.getLastMessage(chat_id);
-
-        // For each participant, send an update to their chat home room
-        for (const participant of chat.participants) {
-          if (participant.user_id !== sender_id) {
-            const chatHomeRoom = `chat_home:${participant.user_id}`;
-
-            // Send the update to the user's chat home room
-            this.server.to(chatHomeRoom).emit('chat_update', {
-              type: 'new_message',
-              chat_id: chat_id,
-              message: lastMessage,
-              chat: chat,
-            });
-          }
         }
       }
 
@@ -360,53 +377,42 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
   }
 
-  @SubscribeMessage('join_chat_home')
-  async handleJoinChatHome(
-    @MessageBody() data: { user_id: string },
-    @ConnectedSocket() client: Socket,
+  // Add these handlers to the ChatGateway class
+
+  @SubscribeMessage('user_status')
+  async handleUserStatus(
+    @MessageBody() data: { status: 'online' | 'offline' },
+    @ConnectedSocket() client: ChatSocket,
   ) {
     try {
-      const { user_id } = data;
+      const userId = client.data.userId;
+      if (!userId) {
+        this.logger.error('Cannot update status: No user ID in socket data');
+        return;
+      }
 
-      // Join a room specific to this user's chat home
-      const roomName = `chat_home:${user_id}`;
-      await client.join(roomName);
+      const status = data.status || 'online';
 
-      this.logger.log(`User ${user_id} joined chat home room: ${roomName}`);
+      // Update user status in database
+      await this.userService.updateUserStatus(userId, status === 'online');
 
-      // Store the user's chat home room in the client data
-      client.data.chatHomeRoom = roomName;
+      // Get all chats for this user
+      const userChats = await this.chatService.getChats({ user_id: userId });
 
-      // Get all chats for the user to initialize the view
-      const chats = await this.chatService.getChats({ user_id });
+      // For each chat, notify other participants about status change
+      for (const chat of userChats) {
+        // Broadcast to all participants in this chat
+        this.server.to(chat.chat_id).emit('user_status_update', {
+          user_id: userId,
+          status: status,
+          timestamp: new Date(),
+        });
+      }
 
-      // Send the chats to the client
-      client.emit('user_chats', chats);
+      this.logger.log(`User ${userId} is now ${status}`);
     } catch (error) {
-      this.logger.error(`Error joining chat home: ${error.message}`);
-      client.emit('error', `Failed to join chat home: ${error.message}`);
-    }
-  }
-
-  @SubscribeMessage('leave_chat_home')
-  async handleLeaveChatHome(
-    @MessageBody() data: { user_id: string },
-    @ConnectedSocket() client: Socket,
-  ) {
-    try {
-      const { user_id } = data;
-
-      // Leave the chat home room
-      const roomName = `chat_home:${user_id}`;
-      await client.leave(roomName);
-
-      this.logger.log(`User ${user_id} left chat home room: ${roomName}`);
-
-      // Remove the chat home room from client data
-      delete client.data.chatHomeRoom;
-    } catch (error) {
-      this.logger.error(`Error leaving chat home: ${error.message}`);
-      client.emit('error', `Failed to leave chat home: ${error.message}`);
+      this.logger.error(`Error updating user status: ${error.message}`);
+      client.emit('error', `Failed to update status: ${error.message}`);
     }
   }
 }

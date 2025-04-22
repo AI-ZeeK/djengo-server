@@ -38,7 +38,7 @@ export class ChatController {
     @Param('chat_id') chat_id: string,
     @Req() req: UserAuthorizedRequest,
   ) {
-    return this.chatService.getLastMessage(chat_id);
+    return this.chatService.getLastMessage({ chat_id });
   }
 
   @Get('last-messages')

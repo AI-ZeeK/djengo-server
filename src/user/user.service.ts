@@ -111,6 +111,18 @@ export class UserService {
     }
   }
 
+  async updateUserStatus(user_id: string, is_online: boolean) {
+    try {
+      const user = await this.prisma.user.update({
+        where: { user_id },
+        data: { is_online },
+      });
+      return user;
+    } catch (error) {
+      throw new BadRequestException(error.message);
+    }
+  }
+
   async getUserContacts({
     req,
     name,

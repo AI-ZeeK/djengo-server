@@ -1,12 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { Express } from 'express';
 
 @Injectable()
 export class SupabaseService {
   private readonly logger = new Logger(SupabaseService.name);
-  private supabase;
+  private supabase: SupabaseClient;
+  private readonly bucketName = 'djengo-audio-uploads';
 
   constructor(private configService: ConfigService) {
     const supabaseUrl = this.configService.get<string>('SUPABASE_URL');
@@ -18,7 +19,26 @@ export class SupabaseService {
       this.logger.error('Missing Supabase environment variables');
     }
 
-    this.supabase = createClient(supabaseUrl!, supabaseServiceKey!);
+    // Create client with explicit service role
+    this.supabase = createClient(supabaseUrl!, supabaseServiceKey!, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+      global: {
+        headers: {
+          Authorization: `Bearer ${supabaseServiceKey}`,
+          apikey: supabaseServiceKey || '',
+        },
+      },
+    });
+    // Ensure the bucket exists when the service starts
+    this.ensureBucketExists().catch((err) => {
+      this.logger.error(
+        `Failed to ensure bucket exists: ${err?.message || 'Unknown error'}`,
+      );
+    });
+    this.logger.log('Supabase client initialized');
   }
 
   /**
@@ -42,7 +62,7 @@ export class SupabaseService {
       if (fileType === 'audio' && !file.mimetype.startsWith('audio/')) {
         throw new Error('Invalid audio format');
       }
-
+      await this.verifyBucketAccess();
       // Create a unique file name
       const fileExt = file.originalname.split('.').pop();
       const fileName = `${userId}/${Date.now()}.${fileExt}`;
@@ -50,7 +70,7 @@ export class SupabaseService {
 
       // Upload the file to Supabase Storage
       const { data, error } = await this.supabase.storage
-        .from('chat-media')
+        .from('djengo-audio-uploads')
         .upload(filePath, file.buffer, {
           cacheControl: '3600',
           upsert: false,
@@ -58,18 +78,22 @@ export class SupabaseService {
         });
 
       if (error) {
-        throw new Error(`Error uploading file: ${error.message}`);
+        throw new Error(
+          `Error uploading file: ${error?.message || 'Unknown error'}`,
+        );
       }
 
       // Get the public URL for the file
       const { data: urlData } = this.supabase.storage
-        .from('chat-media')
+        .from('djengo-audio-uploads')
         .getPublicUrl(filePath);
 
       this.logger.log(`File uploaded successfully: ${urlData.publicUrl}`);
       return urlData.publicUrl;
-    } catch (error) {
-      this.logger.error(`Error uploading file: ${error.message}`);
+    } catch (error: any) {
+      this.logger.error(
+        `Error uploading file: ${error?.message || 'Unknown error'}`,
+      );
       throw error;
     }
   }
@@ -116,7 +140,7 @@ export class SupabaseService {
 
       // Upload the file to Supabase Storage
       const { data, error } = await this.supabase.storage
-        .from('chat-media')
+        .from('djengo-audio-uploads')
         .upload(filePath, buffer, {
           cacheControl: '3600',
           upsert: false,
@@ -124,18 +148,22 @@ export class SupabaseService {
         });
 
       if (error) {
-        throw new Error(`Error uploading file: ${error.message}`);
+        throw new Error(
+          `Error uploading file: ${error?.message || 'Unknown error'}`,
+        );
       }
 
       // Get the public URL for the file
       const { data: urlData } = this.supabase.storage
-        .from('chat-media')
+        .from('djengo-audio-uploads')
         .getPublicUrl(filePath);
 
       this.logger.log(`File uploaded successfully: ${urlData.publicUrl}`);
       return urlData.publicUrl;
     } catch (error) {
-      this.logger.error(`Error uploading file: ${error.message}`);
+      this.logger.error(
+        `Error uploading file: ${error?.message || 'Unknown error'}`,
+      );
       throw error;
     }
   }
@@ -152,7 +180,9 @@ export class SupabaseService {
 
       // The path should be in the format /storage/v1/object/public/bucket-name/path/to/file
       // We need to extract the path after the bucket name
-      const bucketIndex = pathParts.findIndex((part) => part === 'chat-media');
+      const bucketIndex = pathParts.findIndex(
+        (part) => part === 'djengo-audio-uploads',
+      );
       if (bucketIndex === -1) {
         throw new Error('Invalid file URL');
       }
@@ -161,16 +191,60 @@ export class SupabaseService {
 
       // Delete the file from Supabase Storage
       const { error } = await this.supabase.storage
-        .from('chat-media')
+        .from('djengo-audio-uploads')
         .remove([filePath]);
 
       if (error) {
-        throw new Error(`Error deleting file: ${error.message}`);
+        throw new Error(
+          `Error deleting file: ${error?.message || 'Unknown error'}`,
+        );
       }
 
       this.logger.log(`File deleted successfully: ${filePath}`);
     } catch (error) {
-      this.logger.error(`Error deleting file: ${error.message}`);
+      this.logger.error(
+        `Error deleting file: ${error?.message || 'Unknown error'}`,
+      );
+      throw error;
+    }
+  }
+
+  async ensureBucketExists(): Promise<void> {
+    try {
+      // Check if bucket exists
+      const { data: buckets } = await this.supabase.storage.listBuckets();
+      const bucketExists = buckets?.some(
+        (bucket) => bucket.name === 'djengo-audio-uploads',
+      );
+
+      if (!bucketExists) {
+        this.logger.warn(
+          'Bucket "djengo-audio-uploads" does not exist. Please create it manually in the Supabase dashboard.',
+        );
+      } else {
+        this.logger.log('Bucket "djengo-audio-uploads" exists');
+      }
+    } catch (error) {
+      this.logger.error(
+        `Error checking if bucket exists: ${error?.message || 'Unknown error'}`,
+      );
+      // Don't throw the error, just log it
+    }
+  }
+
+  private async verifyBucketAccess() {
+    try {
+      const { data, error } = await this.supabase.storage
+        .from(this.bucketName)
+        .list();
+
+      if (error) {
+        throw new Error(`Bucket access error: ${error.message}`);
+      }
+
+      return true;
+    } catch (error) {
+      this.logger.error(`Bucket verification failed: ${error.message}`);
       throw error;
     }
   }

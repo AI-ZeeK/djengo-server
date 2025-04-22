@@ -86,11 +86,12 @@ export class FileController {
     @Req() req: UserAuthorizedRequest,
   ) {
     const userId = req.user.user_id;
-    const fileUrl = await this.supabaseService.uploadFile(
-      file,
-      'audio',
-      userId,
-    );
+    const fileUrl = await this.fileService.uploadFile(file, 'audio', userId);
+    // const fileUrl = await this.supabaseService.uploadFile(
+    //   file,
+    //   'audio',
+    //   userId,
+    // );
 
     return { url: fileUrl, duration: 0 }; // Return duration as 0, will be updated by client
   }
