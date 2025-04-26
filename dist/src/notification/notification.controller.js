@@ -52,6 +52,16 @@ let NotificationController = class NotificationController {
             throw new common_1.HttpException('Failed to send test notification', common_1.HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
+    async subscribeExpo(req, body) {
+        try {
+            const userId = req.user.user_id;
+            await this.notificationService.registerPushToken(userId, body.token, body.platform, body.token);
+            return { success: true };
+        }
+        catch (error) {
+            throw new common_1.HttpException('Failed to register push token', common_1.HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
 };
 exports.NotificationController = NotificationController;
 __decorate([
@@ -77,6 +87,15 @@ __decorate([
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", Promise)
 ], NotificationController.prototype, "testNotification", null);
+__decorate([
+    (0, common_1.Post)('subscribe-expo'),
+    (0, common_1.UseGuards)(user_guard_1.UserGuard),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], NotificationController.prototype, "subscribeExpo", null);
 exports.NotificationController = NotificationController = __decorate([
     (0, common_1.Controller)('notifications'),
     __metadata("design:paramtypes", [notification_service_1.NotificationService])

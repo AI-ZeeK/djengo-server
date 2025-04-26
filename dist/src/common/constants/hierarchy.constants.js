@@ -2,11 +2,11 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.BRANCH_TYPE_AVAILABLE_ROLES = exports.COMPANY_ROLE_REPORTING = exports.COMPANY_HIERARCHY_REPORTING = exports.COMPANY_ROLES = exports.COMPANY_HIERARCHY_LEVELS = void 0;
 const hierarchy_enum_1 = require("../enums/hierarchy.enum");
-exports.COMPANY_HIERARCHY_LEVELS = Object.entries(hierarchy_enum_1.CompanyHierarchyLevelEnum).map(([key, value]) => ({
+exports.COMPANY_HIERARCHY_LEVELS = Object.entries(hierarchy_enum_1.CompanyHierarchyLevelEnum).map(([_key, value]) => ({
     level_name: value,
     level_number: hierarchy_enum_1.CompanyHierarchyLevelMap[value],
 }));
-exports.COMPANY_ROLES = Object.entries(hierarchy_enum_1.CompanyRoleEnum).map(([key, value]) => ({
+exports.COMPANY_ROLES = Object.entries(hierarchy_enum_1.CompanyRoleEnum).map(([_key, value]) => ({
     role_name: value,
     is_manager: hierarchy_enum_1.CompanyRoleManagerMap[value],
     applicable_branch_types: hierarchy_enum_1.RoleToBranchTypeMap[value],

@@ -63,4 +63,30 @@ export class NotificationController {
       );
     }
   }
+
+  @Post('subscribe-expo')
+  @UseGuards(UserGuard)
+  async subscribeExpo(
+    @Req() req: UserAuthorizedRequest,
+    @Body() body: { token: string; platform: string },
+  ) {
+    try {
+      const userId = req.user.user_id;
+
+      // Register the push token using the unified method
+      await this.notificationService.registerPushToken(
+        userId,
+        body.token,
+        body.platform as 'ANDROID' | 'IOS',
+        body.token, // For mobile, endpoint is the same as token
+      );
+
+      return { success: true };
+    } catch (error) {
+      throw new HttpException(
+        'Failed to register push token',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
 }

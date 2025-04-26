@@ -1,5 +1,4 @@
 import { ConfigService } from '@nestjs/config';
-import { Express } from 'express';
 export declare class SupabaseService {
     private configService;
     private readonly logger;

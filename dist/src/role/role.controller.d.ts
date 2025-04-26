@@ -5,7 +5,15 @@ export declare class RoleController {
     private readonly roleService;
     constructor(roleService: RoleService);
     create(createRoleDto: CreateRoleDto): string;
-    findAll(): any;
+    findAll(): import("@internal/prisma-main").Prisma.PrismaPromise<{
+        role_id: number;
+        role_name: string | null;
+        description: string | null;
+        is_active: boolean | null;
+        created_at: Date | null;
+        updated_at: Date | null;
+        deleted_at: Date | null;
+    }[]>;
     findOne(id: string): string;
     update(id: string, updateRoleDto: UpdateRoleDto): string;
     remove(id: string): string;

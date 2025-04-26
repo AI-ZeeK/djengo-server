@@ -10,7 +10,26 @@ export declare class CompanyService {
     }): Promise<{
         status: boolean;
         message: string;
-        data: any;
+        data: null;
+    } | {
+        status: boolean;
+        message: string;
+        data: {
+            created_at: Date | null;
+            updated_at: Date | null;
+            deleted_at: Date | null;
+            email: string | null;
+            phone_number: string | null;
+            backup_phone_number: string | null;
+            email_verified: boolean | null;
+            phone_verified: boolean | null;
+            company_id: string;
+            company_ref: string | null;
+            company_name: string | null;
+            registeration_date: Date | null;
+            registration_number: string | null;
+            multi_branch: boolean | null;
+        };
     }>;
     findAll(): string;
     findOne(id: number): string;

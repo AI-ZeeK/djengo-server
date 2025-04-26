@@ -4,7 +4,7 @@ export declare class NotificationController {
     private readonly notificationService;
     constructor(notificationService: NotificationService);
     getVapidPublicKey(): {
-        publicKey: any;
+        publicKey: string | undefined;
     };
     subscribePush(body: any, req: UserAuthorizedRequest): Promise<{
         success: boolean;
@@ -16,8 +16,14 @@ export declare class NotificationController {
         failed?: undefined;
     } | {
         success: boolean;
-        successful: any;
-        failed: any;
+        successful: number;
+        failed: number;
         message?: undefined;
+    }>;
+    subscribeExpo(req: UserAuthorizedRequest, body: {
+        token: string;
+        platform: string;
+    }): Promise<{
+        success: boolean;
     }>;
 }

@@ -12,7 +12,6 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
 var ChatGateway_1;
-var _a, _b, _c, _d, _e;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ChatGateway = void 0;
 const websockets_1 = require("@nestjs/websockets");
@@ -22,6 +21,7 @@ const prisma_main_1 = require("@internal/prisma-main");
 const common_1 = require("@nestjs/common");
 const notification_service_1 = require("../notification/notification.service");
 const user_service_1 = require("../user/user.service");
+const send_message_dto_1 = require("../notification/dto/send-message.dto");
 let ChatGateway = ChatGateway_1 = class ChatGateway {
     chatService;
     userService;
@@ -143,42 +143,16 @@ let ChatGateway = ChatGateway_1 = class ChatGateway {
             });
             this.server.to(chat_id).emit('new_message', message);
             const chat = await this.chatService.getChatById(chat_id);
-            for (const participant of participants) {
-                if (participant.user_id === sender_id)
-                    continue;
-                const isConnected = this.isUserConnected(participant.user_id);
-                if (isConnected) {
-                    await this.chatService.updateStatus({
-                        message_id: message.message_id,
-                        to_status: prisma_main_1.MessageStatus.DELIVERED,
-                    });
-                    this.server.to(sender_id).emit('message_delivered', {
-                        message_id: message.message_id,
-                        chat_id,
-                        delivered_to: participant.user_id,
-                    });
-                    this.server.to(participant.user_id).emit('chat_update', {
-                        type: 'new_message',
-                        chat_id: chat_id,
-                        message: message,
-                        chat: chat,
-                    });
-                }
-                else {
-                    console.log('SENDING CHAT NOTIFICATION');
-                    const chat_details = await this.chatService.getChatType({
-                        chat_id,
-                        user_id: participant.user_id,
-                    });
-                    await this.notificationService.sendChatNotification({
-                        chat_id,
-                        sender_id: participant.user_id,
-                        notification: {
-                            title: 'New Message',
-                            body: `You have a new ${chat_details?.chat_type.toLowerCase()} message from ${chat_details?.chat_name}`,
-                            data: {
-                                url: `/overview/chats/${chat_id}`,
-                            },
+            const messageContent = content;
+            const filteredParticipants = chat?.participants.filter((p) => p.user_id !== data.sender_id);
+            if (filteredParticipants) {
+                for (const participant of filteredParticipants) {
+                    await this.notificationService.sendNotificationToUser(participant.user_id, {
+                        title: 'New Message',
+                        body: messageContent,
+                        data: {
+                            chat_id: data.chat_id,
+                            url: `/overview/chats/${data.chat_id}`,
                         },
                     });
                 }
@@ -269,12 +243,12 @@ let ChatGateway = ChatGateway_1 = class ChatGateway {
 exports.ChatGateway = ChatGateway;
 __decorate([
     (0, websockets_1.WebSocketServer)(),
-    __metadata("design:type", typeof (_a = typeof socket_io_1.Server !== "undefined" && socket_io_1.Server) === "function" ? _a : Object)
+    __metadata("design:type", socket_io_1.Server)
 ], ChatGateway.prototype, "server", void 0);
 __decorate([
     __param(0, (0, websockets_1.ConnectedSocket)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [typeof (_b = typeof socket_io_1.Socket !== "undefined" && socket_io_1.Socket) === "function" ? _b : Object]),
+    __metadata("design:paramtypes", [socket_io_1.Socket]),
     __metadata("design:returntype", void 0)
 ], ChatGateway.prototype, "handleConnection", null);
 __decorate([
@@ -304,7 +278,7 @@ __decorate([
     __param(0, (0, websockets_1.MessageBody)()),
     __param(1, (0, websockets_1.ConnectedSocket)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, typeof (_c = typeof socket_io_1.Socket !== "undefined" && socket_io_1.Socket) === "function" ? _c : Object]),
+    __metadata("design:paramtypes", [send_message_dto_1.SendMessageDto, Object]),
     __metadata("design:returntype", Promise)
 ], ChatGateway.prototype, "handleSendMessage", null);
 __decorate([
@@ -312,7 +286,7 @@ __decorate([
     __param(0, (0, websockets_1.MessageBody)()),
     __param(1, (0, websockets_1.ConnectedSocket)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, typeof (_d = typeof socket_io_1.Socket !== "undefined" && socket_io_1.Socket) === "function" ? _d : Object]),
+    __metadata("design:paramtypes", [Object, socket_io_1.Socket]),
     __metadata("design:returntype", Promise)
 ], ChatGateway.prototype, "handleMarkMessagesRead", null);
 __decorate([
@@ -320,7 +294,7 @@ __decorate([
     __param(0, (0, websockets_1.MessageBody)()),
     __param(1, (0, websockets_1.ConnectedSocket)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, typeof (_e = typeof socket_io_1.Socket !== "undefined" && socket_io_1.Socket) === "function" ? _e : Object]),
+    __metadata("design:paramtypes", [Object, socket_io_1.Socket]),
     __metadata("design:returntype", Promise)
 ], ChatGateway.prototype, "handleGetUserChats", null);
 __decorate([

@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -14,6 +14,7 @@ import { ChatController } from './chat/chat.controller';
 import { JwtService } from '@nestjs/jwt';
 import { FileModule } from './file/file.module';
 import { NotificationModule } from './notification/notification.module';
+import { RequestLoggerMiddleware } from './middleware/reauest-logger.middleware';
 
 @Module({
   imports: [
@@ -32,4 +33,8 @@ import { NotificationModule } from './notification/notification.module';
   controllers: [AppController, ChatController],
   providers: [AppService, ChatGateway, ChatService, JwtService],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(RequestLoggerMiddleware).forRoutes('*');
+  }
+}

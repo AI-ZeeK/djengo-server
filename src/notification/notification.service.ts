@@ -64,7 +64,50 @@ export class NotificationService {
   }
 
   /**
-   * Send a notification to a specific user
+   * Register a push token for any platform
+   */
+  async registerPushToken(
+    userId: string,
+    token: string,
+    platform: 'WEB' | 'ANDROID' | 'IOS',
+    endpoint: string = token, // For web, endpoint is different from token
+  ) {
+    try {
+      // Store in the PushSubscription table regardless of platform
+      await this.prisma.pushSubscription.upsert({
+        where: {
+          user_id_endpoint: {
+            user_id: userId,
+            endpoint: endpoint,
+          },
+        },
+        update: {
+          p256dh: platform === 'WEB' ? token : null, // Only web uses p256dh
+          auth: null, // Set as needed for web
+          platform,
+          updated_at: new Date(),
+        },
+        create: {
+          user_id: userId,
+          endpoint: endpoint,
+          p256dh: platform === 'WEB' ? token : null,
+          auth: null,
+          platform,
+        },
+      });
+
+      this.logger.log(
+        `Push token registered for user ${userId} on ${platform}`,
+      );
+      return { success: true };
+    } catch (error) {
+      this.logger.error(`Error registering push token: ${error.message}`);
+      throw new Error('Failed to register push token');
+    }
+  }
+
+  /**
+   * Send a notification to a specific user on any platform
    */
   async sendNotificationToUser(
     userId: string,
@@ -89,7 +132,17 @@ export class NotificationService {
 
       const results = await Promise.allSettled(
         subscriptions.map(async (subscription) => {
-          return this.sendPushNotification(subscription, notification);
+          // Handle different platforms
+          if (subscription.platform === 'WEB') {
+            return this.sendWebPushNotification(subscription, notification);
+          } else if (['ANDROID', 'IOS'].includes(subscription.platform)) {
+            return this.sendExpoPushNotification(
+              subscription.endpoint, // Use endpoint as the token
+              notification.title,
+              notification.body,
+              notification.data,
+            );
+          }
         }),
       );
 
@@ -166,9 +219,9 @@ export class NotificationService {
   }
 
   /**
-   * Send a push notification
+   * Send a web push notification
    */
-  private async sendPushNotification(
+  private async sendWebPushNotification(
     subscription: any,
     notification: {
       title: string;
@@ -216,6 +269,50 @@ export class NotificationService {
       } else {
         this.logger.error(`Error sending push notification: ${error.message}`);
       }
+      throw error;
+    }
+  }
+
+  /**
+   * Send an Expo push notification
+   */
+  private async sendExpoPushNotification(
+    token: string,
+    title: string,
+    body: string,
+    data?: Record<string, string>,
+  ): Promise<void> {
+    try {
+      // For Expo, we send directly to their API
+      const messages = [
+        {
+          to: token,
+          sound: 'default',
+          title,
+          body,
+          data: data || {},
+        },
+      ];
+
+      // Use Expo's push notification service
+      const response = await fetch('https://exp.host/--/api/v2/push/send', {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          'Accept-encoding': 'gzip, deflate',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(messages),
+      });
+
+      const responseData = await response.json();
+      this.logger.log(
+        `Sent Expo push notification: ${JSON.stringify(responseData)}`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `Error sending Expo push notification: ${error.message}`,
+      );
       throw error;
     }
   }

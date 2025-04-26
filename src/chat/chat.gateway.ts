@@ -16,6 +16,7 @@ import { MessageType, MessageStatus } from '@internal/prisma-main';
 import { Logger } from '@nestjs/common';
 import { NotificationService } from '../notification/notification.service';
 import { UserService } from 'src/user/user.service';
+import { SendMessageDto } from '../notification/dto/send-message.dto';
 
 // Define a custom socket type that includes our custom data
 interface ChatSocket extends Socket {
@@ -121,18 +122,18 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const { chat_id, user_id } = data;
 
     try {
-      // Check if the user is a participant
-      const isParticipant = await this.chatService.isParticipant(
-        chat_id,
-        user_id,
-      );
-      if (!isParticipant) {
-        client.emit('error', 'You are not a participant of this chat');
-        return;
-      }
+    // Check if the user is a participant
+    const isParticipant = await this.chatService.isParticipant(
+      chat_id,
+      user_id,
+    );
+    if (!isParticipant) {
+      client.emit('error', 'You are not a participant of this chat');
+      return;
+    }
 
       // Join the socket to the chat room
-      client.join(chat_id);
+    client.join(chat_id);
 
       // Store user ID and active chat in socket data
       client.data.userId = user_id;
@@ -141,28 +142,27 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         client.data.activeChats = new Set<string>();
       }
 
-      // @ts-ignore: Type assertion is used for clarity
       const activeChats = client.data.activeChats as Set<string>;
       activeChats.add(chat_id);
 
       // Add user to active chat users
       this.addUserToActiveChat(chat_id, user_id);
 
-      // Mark messages as read
-      const readMessageIds = await this.chatService.markMessagesAsRead(
+    // Mark messages as read
+    const readMessageIds = await this.chatService.markMessagesAsRead(
+      chat_id,
+      user_id,
+    );
+
+    if (readMessageIds.length > 0) {
+      // Broadcast to all participants that messages have been read
+      this.server.to(chat_id).emit('messages_read', {
         chat_id,
         user_id,
-      );
-
-      if (readMessageIds.length > 0) {
-        // Broadcast to all participants that messages have been read
-        this.server.to(chat_id).emit('messages_read', {
-          chat_id,
-          user_id,
-          message_ids: readMessageIds,
-          read_at: new Date(),
-        });
-      }
+        message_ids: readMessageIds,
+        read_at: new Date(),
+      });
+    }
 
       this.logger.log(`User ${user_id} joined chat ${chat_id}`);
     } catch (error) {
@@ -196,22 +196,15 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   // Send a message to a chat
   @SubscribeMessage('send_message')
   async handleSendMessage(
-    @MessageBody()
-    data: {
-      chat_id: string;
-      content: string;
-      type: string;
-      sender_id: string;
-      duration?: number;
-    },
-    @ConnectedSocket() client: Socket,
+    @MessageBody() data: SendMessageDto,
+    @ConnectedSocket() client: ChatSocket,
   ) {
     try {
       const { chat_id, content, type, sender_id, duration } = data;
 
       let message = await this.chatService.sendMessage({
-        chat_id,
-        content,
+      chat_id,
+      content,
         type: type as MessageType,
         sender_id,
         duration,
@@ -227,56 +220,31 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       });
 
       // Send the new message to everyone in the chat room
-      this.server.to(chat_id).emit('new_message', message);
+    this.server.to(chat_id).emit('new_message', message);
 
       // Get the chat details to include with updates
       const chat = await this.chatService.getChatById(chat_id);
 
-      // For each participant, handle message delivery and notifications
-      for (const participant of participants) {
-        if (participant.user_id === sender_id) continue;
-
-        const isConnected = this.isUserConnected(participant.user_id);
-
-        if (isConnected) {
-          // Update message status to delivered
-          await this.chatService.updateStatus({
-            message_id: message.message_id,
-            to_status: MessageStatus.DELIVERED,
-          });
-
-          // Notify sender that message was delivered
-          this.server.to(sender_id).emit('message_delivered', {
-            message_id: message.message_id,
-            chat_id,
-            delivered_to: participant.user_id,
-          });
-
-          // Send chat update to the participant
-          this.server.to(participant.user_id).emit('chat_update', {
-            type: 'new_message',
-            chat_id: chat_id,
-            message: message,
-            chat: chat,
-          });
-        } else {
-          // Send push notification if user is not connected
-          console.log('SENDING CHAT NOTIFICATION');
-          const chat_details = await this.chatService.getChatType({
-            chat_id,
-            user_id: participant.user_id,
-          });
-          await this.notificationService.sendChatNotification({
-            chat_id,
-            sender_id: participant.user_id,
-            notification: {
+      // After saving the message, send push notifications to all participants
+      // except the sender
+      const messageContent = content;
+      const filteredParticipants = chat?.participants.filter(
+        (p) => p.user_id !== data.sender_id,
+      );
+      if (filteredParticipants) {
+        for (const participant of filteredParticipants) {
+          // Send notification to user
+          await this.notificationService.sendNotificationToUser(
+            participant.user_id,
+            {
               title: 'New Message',
-              body: `You have a new ${chat_details?.chat_type.toLowerCase()} message from ${chat_details?.chat_name}`,
+              body: messageContent,
               data: {
-                url: `/overview/chats/${chat_id}`,
+                chat_id: data.chat_id,
+                url: `/overview/chats/${data.chat_id}`,
               },
             },
-          });
+          );
         }
       }
 
@@ -328,23 +296,23 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @ConnectedSocket() client: Socket,
   ) {
     try {
-      const { chat_id, user_id } = data;
+    const { chat_id, user_id } = data;
 
       // Mark messages as read in the database
-      const readMessageIds = await this.chatService.markMessagesAsRead(
+    const readMessageIds = await this.chatService.markMessagesAsRead(
+      chat_id,
+      user_id,
+    );
+
+    if (readMessageIds.length > 0) {
+      // Broadcast to all participants that messages have been read
+      this.server.to(chat_id).emit('messages_read', {
         chat_id,
         user_id,
-      );
-
-      if (readMessageIds.length > 0) {
-        // Broadcast to all participants that messages have been read
-        this.server.to(chat_id).emit('messages_read', {
-          chat_id,
-          user_id,
-          message_ids: readMessageIds,
-          read_at: new Date(),
-        });
-      }
+        message_ids: readMessageIds,
+        read_at: new Date(),
+      });
+    }
 
       this.logger.log(
         `User ${user_id} marked messages as read in chat ${chat_id}`,

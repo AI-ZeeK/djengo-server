@@ -9,6 +9,9 @@ export declare class NotificationService {
     savePushSubscription(userId: string, subscription: webpush.PushSubscription, platform?: 'WEB' | 'ANDROID' | 'IOS'): Promise<{
         success: boolean;
     }>;
+    registerPushToken(userId: string, token: string, platform: 'WEB' | 'ANDROID' | 'IOS', endpoint?: string): Promise<{
+        success: boolean;
+    }>;
     sendNotificationToUser(userId: string, notification: {
         title: string;
         body: string;
@@ -23,8 +26,8 @@ export declare class NotificationService {
         failed?: undefined;
     } | {
         success: boolean;
-        successful: any;
-        failed: any;
+        successful: number;
+        failed: number;
         message?: undefined;
     }>;
     sendChatNotification({ chat_id, sender_id, notification, }: {
@@ -45,9 +48,10 @@ export declare class NotificationService {
         failed?: undefined;
     } | {
         success: boolean;
-        successful: any;
-        failed: any;
+        successful: number;
+        failed: number;
         message?: undefined;
     }>;
-    private sendPushNotification;
+    private sendWebPushNotification;
+    private sendExpoPushNotification;
 }

@@ -9,7 +9,6 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 var NotificationService_1;
-var _a;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.NotificationService = void 0;
 const common_1 = require("@nestjs/common");
@@ -56,6 +55,37 @@ let NotificationService = NotificationService_1 = class NotificationService {
             throw new Error('Failed to save push subscription');
         }
     }
+    async registerPushToken(userId, token, platform, endpoint = token) {
+        try {
+            await this.prisma.pushSubscription.upsert({
+                where: {
+                    user_id_endpoint: {
+                        user_id: userId,
+                        endpoint: endpoint,
+                    },
+                },
+                update: {
+                    p256dh: platform === 'WEB' ? token : null,
+                    auth: null,
+                    platform,
+                    updated_at: new Date(),
+                },
+                create: {
+                    user_id: userId,
+                    endpoint: endpoint,
+                    p256dh: platform === 'WEB' ? token : null,
+                    auth: null,
+                    platform,
+                },
+            });
+            this.logger.log(`Push token registered for user ${userId} on ${platform}`);
+            return { success: true };
+        }
+        catch (error) {
+            this.logger.error(`Error registering push token: ${error.message}`);
+            throw new Error('Failed to register push token');
+        }
+    }
     async sendNotificationToUser(userId, notification) {
         try {
             const subscriptions = await this.prisma.pushSubscription.findMany({
@@ -66,7 +96,12 @@ let NotificationService = NotificationService_1 = class NotificationService {
                 return { success: false, message: 'No subscriptions found' };
             }
             const results = await Promise.allSettled(subscriptions.map(async (subscription) => {
-                return this.sendPushNotification(subscription, notification);
+                if (subscription.platform === 'WEB') {
+                    return this.sendWebPushNotification(subscription, notification);
+                }
+                else if (['ANDROID', 'IOS'].includes(subscription.platform)) {
+                    return this.sendExpoPushNotification(subscription.endpoint, notification.title, notification.body, notification.data);
+                }
             }));
             const successful = results.filter((r) => r.status === 'fulfilled').length;
             const failed = results.filter((r) => r.status === 'rejected').length;
@@ -106,7 +141,7 @@ let NotificationService = NotificationService_1 = class NotificationService {
             throw new Error('Failed to send chat notification');
         }
     }
-    async sendPushNotification(subscription, notification) {
+    async sendWebPushNotification(subscription, notification) {
         try {
             const webPushSubscription = {
                 endpoint: subscription.endpoint,
@@ -144,10 +179,39 @@ let NotificationService = NotificationService_1 = class NotificationService {
             throw error;
         }
     }
+    async sendExpoPushNotification(token, title, body, data) {
+        try {
+            const messages = [
+                {
+                    to: token,
+                    sound: 'default',
+                    title,
+                    body,
+                    data: data || {},
+                },
+            ];
+            const response = await fetch('https://exp.host/--/api/v2/push/send', {
+                method: 'POST',
+                headers: {
+                    Accept: 'application/json',
+                    'Accept-encoding': 'gzip, deflate',
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(messages),
+            });
+            const responseData = await response.json();
+            this.logger.log(`Sent Expo push notification: ${JSON.stringify(responseData)}`);
+        }
+        catch (error) {
+            this.logger.error(`Error sending Expo push notification: ${error.message}`);
+            throw error;
+        }
+    }
 };
 exports.NotificationService = NotificationService;
 exports.NotificationService = NotificationService = NotificationService_1 = __decorate([
     (0, common_1.Injectable)(),
-    __metadata("design:paramtypes", [typeof (_a = typeof config_1.ConfigService !== "undefined" && config_1.ConfigService) === "function" ? _a : Object, prisma_service_1.PrismaService])
+    __metadata("design:paramtypes", [config_1.ConfigService,
+        prisma_service_1.PrismaService])
 ], NotificationService);
 //# sourceMappingURL=notification.service.js.map

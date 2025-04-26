@@ -10,14 +10,14 @@ import {
 // Company hierarchy levels with their properties
 export const COMPANY_HIERARCHY_LEVELS = Object.entries(
   CompanyHierarchyLevelEnum,
-).map(([key, value]) => ({
+).map(([_key, value]) => ({
   level_name: value,
   level_number: CompanyHierarchyLevelMap[value],
 }));
 
 // Company roles with their properties
 export const COMPANY_ROLES = Object.entries(CompanyRoleEnum).map(
-  ([key, value]) => ({
+  ([_key, value]) => ({
     role_name: value,
     is_manager: CompanyRoleManagerMap[value],
     applicable_branch_types: RoleToBranchTypeMap[value],

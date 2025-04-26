@@ -3,6 +3,7 @@ import { Server, Socket } from 'socket.io';
 import { ChatService } from './chat.service';
 import { NotificationService } from '../notification/notification.service';
 import { UserService } from 'src/user/user.service';
+import { SendMessageDto } from '../notification/dto/send-message.dto';
 interface ChatSocket extends Socket {
     data: {
         userId?: string;
@@ -31,13 +32,7 @@ export declare class ChatGateway implements OnGatewayConnection, OnGatewayDiscon
         chat_id: string;
         user_id: string;
     }, client: ChatSocket): void;
-    handleSendMessage(data: {
-        chat_id: string;
-        content: string;
-        type: string;
-        sender_id: string;
-        duration?: number;
-    }, client: Socket): Promise<void>;
+    handleSendMessage(data: SendMessageDto, client: ChatSocket): Promise<void>;
     private isUserConnected;
     handleMarkMessagesRead(data: {
         chat_id: string;

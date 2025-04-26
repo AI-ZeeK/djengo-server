@@ -4,5 +4,5 @@ export declare const cookieOptions: {
     sameSite: "lax";
     path: string;
     maxAge: number;
-    domain: any;
+    domain: string;
 };
