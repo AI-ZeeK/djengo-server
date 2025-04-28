@@ -23,7 +23,11 @@ const chat_controller_1 = require("./chat/chat.controller");
 const jwt_1 = require("@nestjs/jwt");
 const file_module_1 = require("./file/file.module");
 const notification_module_1 = require("./notification/notification.module");
+const reauest_logger_middleware_1 = require("./middleware/reauest-logger.middleware");
 let AppModule = class AppModule {
+    configure(consumer) {
+        consumer.apply(reauest_logger_middleware_1.RequestLoggerMiddleware).forRoutes('*');
+    }
 };
 exports.AppModule = AppModule;
 exports.AppModule = AppModule = __decorate([

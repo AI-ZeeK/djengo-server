@@ -11,6 +11,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
+var FileController_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.FileController = void 0;
 const common_1 = require("@nestjs/common");
@@ -18,9 +19,10 @@ const platform_express_1 = require("@nestjs/platform-express");
 const file_service_1 = require("./file.service");
 const user_guard_1 = require("../auth/user.guard");
 const supabase_service_1 = require("./supabase.service");
-let FileController = class FileController {
+let FileController = FileController_1 = class FileController {
     fileService;
     supabaseService;
+    logger = new common_1.Logger(FileController_1.name);
     constructor(fileService, supabaseService) {
         this.fileService = fileService;
         this.supabaseService = supabaseService;
@@ -52,6 +54,16 @@ let FileController = class FileController {
         }
         const fileUrl = await this.fileService.uploadBase64File(file, type, userId);
         return { url: fileUrl };
+    }
+    async uploadMultipleFiles(files, req) {
+        const userId = req.user.user_id;
+        const results = await this.fileService.uploadMultipleFiles(files, userId);
+        return { files: results };
+    }
+    async uploadMultipleBase64Files(body, req) {
+        const userId = req.user.user_id;
+        const results = await this.fileService.uploadMultipleBase64Files(body.files, userId);
+        return { files: results };
     }
 };
 exports.FileController = FileController;
@@ -109,7 +121,31 @@ __decorate([
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], FileController.prototype, "uploadBase64File", null);
-exports.FileController = FileController = __decorate([
+__decorate([
+    (0, common_1.UseGuards)(user_guard_1.UserGuard),
+    (0, common_1.Post)('upload/multiple'),
+    (0, common_1.UseInterceptors)((0, platform_express_1.FilesInterceptor)('files', 10)),
+    __param(0, (0, common_1.UploadedFiles)(new common_1.ParseFilePipe({
+        validators: [
+            new common_1.MaxFileSizeValidator({ maxSize: 50 * 1024 * 1024 }),
+            new common_1.FileTypeValidator({ fileType: /(image|video|audio)\/.+/ }),
+        ],
+    }))),
+    __param(1, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Array, Object]),
+    __metadata("design:returntype", Promise)
+], FileController.prototype, "uploadMultipleFiles", null);
+__decorate([
+    (0, common_1.UseGuards)(user_guard_1.UserGuard),
+    (0, common_1.Post)('upload/multiple/base64'),
+    __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], FileController.prototype, "uploadMultipleBase64Files", null);
+exports.FileController = FileController = FileController_1 = __decorate([
     (0, common_1.Controller)('files'),
     __metadata("design:paramtypes", [file_service_1.FileService,
         supabase_service_1.SupabaseService])

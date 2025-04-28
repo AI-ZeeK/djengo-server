@@ -379,7 +379,6 @@ export class AuthService {
           email: email.toLowerCase(),
         },
       });
-
       if (!user) {
         throw new NotFoundException('User not found');
       }

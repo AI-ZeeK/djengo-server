@@ -40,6 +40,13 @@ export class UserService {
               is_active: true,
             },
           },
+
+          user_companies: {
+            include: {
+              company: true,
+            },
+          },
+
           ...include,
         },
       });

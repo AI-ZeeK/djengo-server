@@ -222,8 +222,8 @@ export class ChatService {
     const participant = await this.prisma.chatParticipant.findUnique({
       where: {
         chat_id_user_id: {
-        chat_id,
-        user_id,
+          chat_id,
+          user_id,
         },
       },
     });
@@ -245,14 +245,24 @@ export class ChatService {
     sender_id: string;
     content: string;
     type: MessageType;
+    media_urls: string[];
     duration?: number; // For audio messages
   }) {
     try {
-      const { chat_id, sender_id, content, type, duration } = data;
+      const {
+        chat_id,
+        sender_id,
+        content,
+        type,
+        duration,
+        media_urls = [],
+      } = data;
 
       // Validate content based on type
-      if (type === MessageType.IMAGE && !this.isValidImageUrl(content)) {
-        throw new BadRequestException('Invalid image URL or format');
+      for (const media_url of media_urls) {
+        if (type === MessageType.IMAGE && !this.isValidImageUrl(media_url)) {
+          throw new BadRequestException('Invalid image URL or format');
+        }
       }
 
       if (type === MessageType.AUDIO && !this.isAudioFile(content)) {
@@ -260,38 +270,36 @@ export class ChatService {
       }
 
       // Save the message to the database with appropriate fields
-      const messageData: any = {
-        chat_id,
-        sender_id,
-        content,
-        type,
-        status: MessageStatus.SENT,
-      };
 
       // Add duration for audio messages
-      if (type === MessageType.AUDIO && duration) {
-        messageData.duration = duration;
-      }
 
       const message = await this.prisma.message.create({
-        data: messageData,
-      include: {
-        sender: true, // Include sender details
-      },
-    });
+        data: {
+          chat_id,
+          sender_id,
+          content,
+          type,
+          status: MessageStatus.SENT,
+          media_urls,
+          duration: type === MessageType.AUDIO ? duration || 0 : undefined,
+        },
+        include: {
+          sender: true, // Include sender details
+        },
+      });
 
       // Increment unread count for other participants
-    await this.prisma.chatParticipant.updateMany({
-      where: {
-        chat_id,
-        user_id: { not: sender_id }, // Exclude the sender
-      },
-      data: {
-        unread_count: { increment: 1 },
-      },
-    });
+      await this.prisma.chatParticipant.updateMany({
+        where: {
+          chat_id,
+          user_id: { not: sender_id }, // Exclude the sender
+        },
+        data: {
+          unread_count: { increment: 1 },
+        },
+      });
 
-    return message;
+      return message;
     } catch (error) {
       this.logger.error(`Error sending message: ${error.message}`);
       throw new Error('Failed to send message');
@@ -335,20 +343,20 @@ export class ChatService {
   async markMessagesAsRead(chat_id: string, user_id: string) {
     // Find all unread messages in the chat that were not sent by the user
     const messages = await this.prisma.message.findMany({
-        where: {
-          chat_id,
-          sender_id: {
-            not: user_id,
-          },
+      where: {
+        chat_id,
+        sender_id: {
+          not: user_id,
+        },
         status: {
           in: [MessageStatus.SENT, MessageStatus.DELIVERED],
-            },
-          },
+        },
+      },
       select: {
         message_id: true,
         sender_id: true,
-        },
-      });
+      },
+    });
 
     if (messages.length === 0) {
       return [];
@@ -356,15 +364,15 @@ export class ChatService {
 
     // Update all messages to read status
     await this.prisma.message.updateMany({
-          where: {
+      where: {
         message_id: {
           in: messages.map((m) => m.message_id),
         },
-          },
-          data: {
+      },
+      data: {
         status: MessageStatus.READ,
-          },
-        });
+      },
+    });
 
     // Return the message IDs that were marked as read
     return messages.map((m) => ({

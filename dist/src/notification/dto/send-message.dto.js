@@ -7,6 +7,7 @@ class SendMessageDto {
     content;
     type;
     duration;
+    media_urls;
 }
 exports.SendMessageDto = SendMessageDto;
 //# sourceMappingURL=send-message.dto.js.map

@@ -40,8 +40,8 @@ export declare class AuthService {
             created_at: Date;
             updated_at: Date;
             user_id: string;
-            staff_id: string;
             company_id: string | null;
+            staff_id: string;
             date_joined: Date;
             department_id: string | null;
             designation: string | null;
@@ -170,8 +170,8 @@ export declare class AuthService {
                 created_at: Date;
                 updated_at: Date;
                 user_id: string;
-                staff_id: string;
                 company_id: string | null;
+                staff_id: string;
                 date_joined: Date;
                 department_id: string | null;
                 designation: string | null;
@@ -190,6 +190,7 @@ export declare class AuthService {
                 chat_id: string;
                 sender_id: string;
                 content: string;
+                media_urls: string[];
                 type: import("@internal/prisma-main").$Enums.MessageType;
                 status: import("@internal/prisma-main").$Enums.MessageStatus;
                 duration: number | null;
@@ -273,8 +274,8 @@ export declare class AuthService {
                 created_at: Date;
                 updated_at: Date;
                 user_id: string;
-                company_id: string;
                 user_company_id: string;
+                company_id: string;
                 is_primary: boolean;
                 is_owner: boolean;
             }[];

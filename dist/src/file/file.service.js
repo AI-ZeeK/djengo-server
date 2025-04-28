@@ -118,6 +118,87 @@ let FileService = FileService_1 = class FileService {
             throw new common_1.BadRequestException(`Failed to delete file: ${error.message}`);
         }
     }
+    async uploadMultipleFiles(files, userId) {
+        try {
+            const uploadPromises = files.map(async (file) => {
+                const fileType = this.determineFileType(file.mimetype);
+                const folder = `djengo/${fileType}s/${userId}`;
+                const resourceType = fileType === 'audio' ? 'video' : fileType;
+                const stream = new stream_1.Readable();
+                stream.push(file.buffer);
+                stream.push(null);
+                const result = await new Promise((resolve, reject) => {
+                    const uploadStream = cloudinary_1.v2.uploader.upload_stream({
+                        folder,
+                        resource_type: resourceType,
+                        overwrite: true,
+                    }, (error, result) => {
+                        if (error)
+                            return reject(error);
+                        if (!result) {
+                            reject(new Error('Failed to get result from upload'));
+                            return;
+                        }
+                        resolve(result);
+                    });
+                    stream.pipe(uploadStream);
+                });
+                return {
+                    url: result.secure_url,
+                    type: fileType,
+                };
+            });
+            return await Promise.all(uploadPromises);
+        }
+        catch (error) {
+            this.logger.error(`Error uploading multiple files: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            throw new common_1.BadRequestException(`Failed to upload files: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
+    }
+    async uploadMultipleBase64Files(files, userId) {
+        try {
+            const uploadPromises = files.map(async ({ file, type }) => {
+                if (!file.startsWith(`data:${type}/`)) {
+                    throw new Error(`Invalid ${type} format`);
+                }
+                const folder = `djengo/${type}s/${userId}`;
+                const resourceType = type === 'audio' ? 'video' : type;
+                const result = await new Promise((resolve, reject) => {
+                    cloudinary_1.v2.uploader.upload(file, {
+                        folder,
+                        resource_type: resourceType,
+                        overwrite: true,
+                    }, (error, result) => {
+                        if (error)
+                            return reject(error);
+                        if (!result) {
+                            reject(new Error('Failed to get result from upload'));
+                            return;
+                        }
+                        resolve(result);
+                    });
+                });
+                return {
+                    url: result.secure_url,
+                    type,
+                };
+            });
+            return await Promise.all(uploadPromises);
+        }
+        catch (error) {
+            this.logger.error(`Error uploading multiple base64 files: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            throw new common_1.BadRequestException(`Failed to upload files: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
+    }
+    determineFileType(mimetype) {
+        if (mimetype.startsWith('image/'))
+            return 'image';
+        if (mimetype.startsWith('video/'))
+            return 'video';
+        if (mimetype.startsWith('audio/'))
+            return 'audio';
+        throw new common_1.BadRequestException('Unsupported file type');
+    }
 };
 exports.FileService = FileService;
 exports.FileService = FileService = FileService_1 = __decorate([

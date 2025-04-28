@@ -5,12 +5,14 @@ import {
   Req,
   UseInterceptors,
   UploadedFile,
+  UploadedFiles,
   ParseFilePipe,
   MaxFileSizeValidator,
   FileTypeValidator,
   Body,
+  Logger,
 } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
+import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { FileService } from './file.service';
 import { UserGuard } from 'src/auth/user.guard';
 import { UserAuthorizedRequest } from '../interfaces/user.interface';
@@ -19,6 +21,7 @@ import { SupabaseService } from './supabase.service';
 
 @Controller('files')
 export class FileController {
+  private readonly logger = new Logger(FileController.name);
   constructor(
     private readonly fileService: FileService,
     private readonly supabaseService: SupabaseService,
@@ -117,5 +120,40 @@ export class FileController {
     const fileUrl = await this.fileService.uploadBase64File(file, type, userId);
 
     return { url: fileUrl };
+  }
+
+  @UseGuards(UserGuard)
+  @Post('upload/multiple')
+  @UseInterceptors(FilesInterceptor('files', 10)) // Allow up to 10 files
+  async uploadMultipleFiles(
+    @UploadedFiles(
+      new ParseFilePipe({
+        validators: [
+          new MaxFileSizeValidator({ maxSize: 50 * 1024 * 1024 }), // 50MB max per file
+          new FileTypeValidator({ fileType: /(image|video|audio)\/.+/ }),
+        ],
+      }),
+    )
+    files: Express.Multer.File[],
+    @Req() req: UserAuthorizedRequest,
+  ) {
+    const userId = req.user.user_id;
+    const results = await this.fileService.uploadMultipleFiles(files, userId);
+    return { files: results };
+  }
+
+  @UseGuards(UserGuard)
+  @Post('upload/multiple/base64')
+  async uploadMultipleBase64Files(
+    @Body()
+    body: { files: Array<{ file: string; type: 'image' | 'video' | 'audio' }> },
+    @Req() req: UserAuthorizedRequest,
+  ) {
+    const userId = req.user.user_id;
+    const results = await this.fileService.uploadMultipleBase64Files(
+      body.files,
+      userId,
+    );
+    return { files: results };
   }
 }

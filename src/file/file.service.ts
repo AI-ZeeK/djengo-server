@@ -1,9 +1,11 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { v2 as cloudinary } from 'cloudinary';
+import { v2 as cloudinary, UploadApiResponse } from 'cloudinary';
 import { Readable } from 'stream';
 import { Express } from 'express';
+
+export type FileType = 'image' | 'video' | 'audio';
 
 @Injectable()
 export class FileService {
@@ -174,5 +176,120 @@ export class FileService {
       this.logger.error(`Error deleting file: ${error.message}`);
       throw new BadRequestException(`Failed to delete file: ${error.message}`);
     }
+  }
+
+  async uploadMultipleFiles(
+    files: Express.Multer.File[],
+    userId: string,
+  ): Promise<Array<{ url: string; type: FileType }>> {
+    try {
+      const uploadPromises = files.map(async (file) => {
+        const fileType = this.determineFileType(file.mimetype);
+        const folder = `djengo/${fileType}s/${userId}`;
+        const resourceType = fileType === 'audio' ? 'video' : fileType;
+
+        // Create a readable stream from the buffer
+        const stream = new Readable();
+        stream.push(file.buffer);
+        stream.push(null);
+
+        // Upload to Cloudinary using stream
+        const result = await new Promise<UploadApiResponse>(
+          (resolve, reject) => {
+            const uploadStream = cloudinary.uploader.upload_stream(
+              {
+                folder,
+                resource_type: resourceType,
+                overwrite: true,
+              },
+              (error, result) => {
+                if (error) return reject(error);
+                if (!result) {
+                  reject(new Error('Failed to get result from upload'));
+                  return;
+                }
+                resolve(result);
+              },
+            );
+
+            stream.pipe(uploadStream);
+          },
+        );
+
+        return {
+          url: result.secure_url,
+          type: fileType,
+        };
+      });
+
+      return await Promise.all(uploadPromises);
+    } catch (error) {
+      this.logger.error(
+        `Error uploading multiple files: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
+      throw new BadRequestException(
+        `Failed to upload files: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
+    }
+  }
+
+  async uploadMultipleBase64Files(
+    files: Array<{ file: string; type: FileType }>,
+    userId: string,
+  ): Promise<Array<{ url: string; type: FileType }>> {
+    try {
+      const uploadPromises = files.map(async ({ file, type }) => {
+        // Validate base64 data
+        if (!file.startsWith(`data:${type}/`)) {
+          throw new Error(`Invalid ${type} format`);
+        }
+
+        const folder = `djengo/${type}s/${userId}`;
+        const resourceType = type === 'audio' ? 'video' : type;
+
+        // Upload to Cloudinary
+        const result = await new Promise<UploadApiResponse>(
+          (resolve, reject) => {
+            cloudinary.uploader.upload(
+              file,
+              {
+                folder,
+                resource_type: resourceType,
+                overwrite: true,
+              },
+              (error, result) => {
+                if (error) return reject(error);
+                if (!result) {
+                  reject(new Error('Failed to get result from upload'));
+                  return;
+                }
+                resolve(result);
+              },
+            );
+          },
+        );
+
+        return {
+          url: result.secure_url,
+          type,
+        };
+      });
+
+      return await Promise.all(uploadPromises);
+    } catch (error) {
+      this.logger.error(
+        `Error uploading multiple base64 files: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
+      throw new BadRequestException(
+        `Failed to upload files: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
+    }
+  }
+
+  private determineFileType(mimetype: string): FileType {
+    if (mimetype.startsWith('image/')) return 'image';
+    if (mimetype.startsWith('video/')) return 'video';
+    if (mimetype.startsWith('audio/')) return 'audio';
+    throw new BadRequestException('Unsupported file type');
   }
 }

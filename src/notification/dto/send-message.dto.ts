@@ -4,4 +4,5 @@ export class SendMessageDto {
   content: string;
   type: string;
   duration?: number;
+  media_urls?: string[];
 }

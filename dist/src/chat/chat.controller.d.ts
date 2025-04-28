@@ -23,6 +23,7 @@ export declare class ChatController {
             chat_id: string;
             sender_id: string;
             content: string;
+            media_urls: string[];
             type: import("@internal/prisma-main").$Enums.MessageType;
             status: import("@internal/prisma-main").$Enums.MessageStatus;
             duration: number | null;
@@ -88,6 +89,7 @@ export declare class ChatController {
         chat_id: string;
         sender_id: string;
         content: string;
+        media_urls: string[];
         type: import("@internal/prisma-main").$Enums.MessageType;
         status: import("@internal/prisma-main").$Enums.MessageStatus;
         duration: number | null;
@@ -110,6 +112,7 @@ export declare class ChatController {
         chat_id: string;
         sender_id: string;
         content: string;
+        media_urls: string[];
         type: import("@internal/prisma-main").$Enums.MessageType;
         status: import("@internal/prisma-main").$Enums.MessageStatus;
         duration: number | null;

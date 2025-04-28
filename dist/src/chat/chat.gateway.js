@@ -126,13 +126,16 @@ let ChatGateway = ChatGateway_1 = class ChatGateway {
     }
     async handleSendMessage(data, client) {
         try {
-            const { chat_id, content, type, sender_id, duration } = data;
+            const { chat_id, content, type, sender_id, duration, media_urls } = data;
+            this.logger.log('media_urls', media_urls);
+            this.logger.log('content', content);
             let message = await this.chatService.sendMessage({
                 chat_id,
                 content,
                 type: type,
                 sender_id,
                 duration,
+                media_urls: media_urls || [],
             });
             message = await this.chatService.updateStatus({
                 message_id: message.message_id,

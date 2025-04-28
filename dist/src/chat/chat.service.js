@@ -212,25 +212,25 @@ let ChatService = ChatService_1 = class ChatService {
     }
     async sendMessage(data) {
         try {
-            const { chat_id, sender_id, content, type, duration } = data;
-            if (type === prisma_main_1.MessageType.IMAGE && !this.isValidImageUrl(content)) {
-                throw new common_1.BadRequestException('Invalid image URL or format');
+            const { chat_id, sender_id, content, type, duration, media_urls = [], } = data;
+            for (const media_url of media_urls) {
+                if (type === prisma_main_1.MessageType.IMAGE && !this.isValidImageUrl(media_url)) {
+                    throw new common_1.BadRequestException('Invalid image URL or format');
+                }
             }
             if (type === prisma_main_1.MessageType.AUDIO && !this.isAudioFile(content)) {
                 throw new common_1.BadRequestException('Invalid audio content');
             }
-            const messageData = {
-                chat_id,
-                sender_id,
-                content,
-                type,
-                status: prisma_main_1.MessageStatus.SENT,
-            };
-            if (type === prisma_main_1.MessageType.AUDIO && duration) {
-                messageData.duration = duration;
-            }
             const message = await this.prisma.message.create({
-                data: messageData,
+                data: {
+                    chat_id,
+                    sender_id,
+                    content,
+                    type,
+                    status: prisma_main_1.MessageStatus.SENT,
+                    media_urls,
+                    duration: type === prisma_main_1.MessageType.AUDIO ? duration || 0 : undefined,
+                },
                 include: {
                     sender: true,
                 },

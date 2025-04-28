@@ -122,18 +122,18 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const { chat_id, user_id } = data;
 
     try {
-    // Check if the user is a participant
-    const isParticipant = await this.chatService.isParticipant(
-      chat_id,
-      user_id,
-    );
-    if (!isParticipant) {
-      client.emit('error', 'You are not a participant of this chat');
-      return;
-    }
+      // Check if the user is a participant
+      const isParticipant = await this.chatService.isParticipant(
+        chat_id,
+        user_id,
+      );
+      if (!isParticipant) {
+        client.emit('error', 'You are not a participant of this chat');
+        return;
+      }
 
       // Join the socket to the chat room
-    client.join(chat_id);
+      client.join(chat_id);
 
       // Store user ID and active chat in socket data
       client.data.userId = user_id;
@@ -148,21 +148,21 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       // Add user to active chat users
       this.addUserToActiveChat(chat_id, user_id);
 
-    // Mark messages as read
-    const readMessageIds = await this.chatService.markMessagesAsRead(
-      chat_id,
-      user_id,
-    );
-
-    if (readMessageIds.length > 0) {
-      // Broadcast to all participants that messages have been read
-      this.server.to(chat_id).emit('messages_read', {
+      // Mark messages as read
+      const readMessageIds = await this.chatService.markMessagesAsRead(
         chat_id,
         user_id,
-        message_ids: readMessageIds,
-        read_at: new Date(),
-      });
-    }
+      );
+
+      if (readMessageIds.length > 0) {
+        // Broadcast to all participants that messages have been read
+        this.server.to(chat_id).emit('messages_read', {
+          chat_id,
+          user_id,
+          message_ids: readMessageIds,
+          read_at: new Date(),
+        });
+      }
 
       this.logger.log(`User ${user_id} joined chat ${chat_id}`);
     } catch (error) {
@@ -200,14 +200,17 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @ConnectedSocket() client: ChatSocket,
   ) {
     try {
-      const { chat_id, content, type, sender_id, duration } = data;
+      const { chat_id, content, type, sender_id, duration, media_urls } = data;
+      this.logger.log('media_urls', media_urls);
+      this.logger.log('content', content);
 
       let message = await this.chatService.sendMessage({
-      chat_id,
-      content,
+        chat_id,
+        content,
         type: type as MessageType,
         sender_id,
         duration,
+        media_urls: media_urls || [],
       });
 
       message = await this.chatService.updateStatus({
@@ -220,7 +223,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       });
 
       // Send the new message to everyone in the chat room
-    this.server.to(chat_id).emit('new_message', message);
+      this.server.to(chat_id).emit('new_message', message);
 
       // Get the chat details to include with updates
       const chat = await this.chatService.getChatById(chat_id);
@@ -296,23 +299,23 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @ConnectedSocket() client: Socket,
   ) {
     try {
-    const { chat_id, user_id } = data;
+      const { chat_id, user_id } = data;
 
       // Mark messages as read in the database
-    const readMessageIds = await this.chatService.markMessagesAsRead(
-      chat_id,
-      user_id,
-    );
-
-    if (readMessageIds.length > 0) {
-      // Broadcast to all participants that messages have been read
-      this.server.to(chat_id).emit('messages_read', {
+      const readMessageIds = await this.chatService.markMessagesAsRead(
         chat_id,
         user_id,
-        message_ids: readMessageIds,
-        read_at: new Date(),
-      });
-    }
+      );
+
+      if (readMessageIds.length > 0) {
+        // Broadcast to all participants that messages have been read
+        this.server.to(chat_id).emit('messages_read', {
+          chat_id,
+          user_id,
+          message_ids: readMessageIds,
+          read_at: new Date(),
+        });
+      }
 
       this.logger.log(
         `User ${user_id} marked messages as read in chat ${chat_id}`,
