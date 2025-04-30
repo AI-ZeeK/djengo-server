@@ -22,7 +22,7 @@ import { SendMessageDto } from '../notification/dto/send-message.dto';
 interface ChatSocket extends Socket {
   data: {
     userId?: string;
-    activeChats?: Set<string>;
+    activeChats: Set<string>;
     chatHomeRoom?: string;
   };
 }
@@ -59,7 +59,10 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     // Update user status to offline when they disconnect
     if (client.data.userId) {
       this.userService
-        .updateUserStatus(client.data.userId, false)
+        .updateUserStatus({
+          user_id: client.data.userId,
+          last_seen: 'offline',
+        })
         .then(() => {
           // Get all chats for this user
           return this.chatService.getChats({ user_id: client.data.userId! });
@@ -225,13 +228,10 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       // Send the new message to everyone in the chat room
       this.server.to(chat_id).emit('new_message', message);
 
-      // Get the chat details to include with updates
-      const chat = await this.chatService.getChatById(chat_id);
-
       // After saving the message, send push notifications to all participants
       // except the sender
       const messageContent = content;
-      const filteredParticipants = chat?.participants.filter(
+      const filteredParticipants = participants.filter(
         (p) => p.user_id !== data.sender_id,
       );
       if (filteredParticipants) {
@@ -365,7 +365,10 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       const status = data.status || 'online';
 
       // Update user status in database
-      await this.userService.updateUserStatus(userId, status === 'online');
+      await this.userService.updateUserStatus({
+        user_id: userId,
+        last_seen: status === 'online' ? 'online' : new Date().toISOString(),
+      });
 
       // Get all chats for this user
       const userChats = await this.chatService.getChats({ user_id: userId });

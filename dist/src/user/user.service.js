@@ -109,11 +109,11 @@ let UserService = class UserService {
             throw new common_1.BadRequestException(error.message);
         }
     }
-    async updateUserStatus(user_id, is_online) {
+    async updateUserStatus({ user_id, last_seen, }) {
         try {
             const user = await this.prisma.user.update({
                 where: { user_id },
-                data: { is_online },
+                data: { last_seen },
             });
             return user;
         }

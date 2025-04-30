@@ -29,4 +29,4 @@ exports.RequestLoggerMiddleware = RequestLoggerMiddleware;
 exports.RequestLoggerMiddleware = RequestLoggerMiddleware = __decorate([
     (0, common_1.Injectable)()
 ], RequestLoggerMiddleware);
-//# sourceMappingURL=reauest-logger.middleware.js.map
+//# sourceMappingURL=request-logger.middleware.js.map

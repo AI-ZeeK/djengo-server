@@ -200,8 +200,8 @@ export declare class UserService {
             auth: string | null;
             platform: string;
         }[];
-        created_at: Date | null;
-        updated_at: Date | null;
+        created_at: Date;
+        updated_at: Date;
         deleted_at: Date | null;
         email: string;
         user_id: string;
@@ -217,7 +217,7 @@ export declare class UserService {
         is_blocked: boolean | null;
         fcm_token: string;
         refresh_token: string;
-        is_online: boolean | null;
+        last_seen: string;
     } | null>;
     fetchByEmail({ email }: {
         email: string;
@@ -229,8 +229,8 @@ export declare class UserService {
         status: boolean;
         message: string;
         data: {
-            created_at: Date | null;
-            updated_at: Date | null;
+            created_at: Date;
+            updated_at: Date;
             deleted_at: Date | null;
             email: string;
             user_id: string;
@@ -246,12 +246,15 @@ export declare class UserService {
             is_blocked: boolean | null;
             fcm_token: string;
             refresh_token: string;
-            is_online: boolean | null;
+            last_seen: string;
         };
     }>;
-    updateUserStatus(user_id: string, is_online: boolean): Promise<{
-        created_at: Date | null;
-        updated_at: Date | null;
+    updateUserStatus({ user_id, last_seen, }: {
+        user_id: string;
+        last_seen: string;
+    }): Promise<{
+        created_at: Date;
+        updated_at: Date;
         deleted_at: Date | null;
         email: string;
         user_id: string;
@@ -267,7 +270,7 @@ export declare class UserService {
         is_blocked: boolean | null;
         fcm_token: string;
         refresh_token: string;
-        is_online: boolean | null;
+        last_seen: string;
     }>;
     getUserContacts({ req, name, }: {
         req: UserAuthorizedRequest;

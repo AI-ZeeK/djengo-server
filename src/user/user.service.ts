@@ -118,11 +118,17 @@ export class UserService {
     }
   }
 
-  async updateUserStatus(user_id: string, is_online: boolean) {
+  async updateUserStatus({
+    user_id,
+    last_seen,
+  }: {
+    user_id: string;
+    last_seen: string;
+  }) {
     try {
       const user = await this.prisma.user.update({
         where: { user_id },
-        data: { is_online },
+        data: { last_seen },
       });
       return user;
     } catch (error) {

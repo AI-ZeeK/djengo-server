@@ -16,10 +16,39 @@ exports.ChatController = void 0;
 const common_1 = require("@nestjs/common");
 const chat_service_1 = require("./chat.service");
 const user_guard_1 = require("../auth/user.guard");
+const prisma_main_1 = require("@internal/prisma-main");
+const create_chat_dto_1 = require("./dto/create-chat.dto");
 let ChatController = class ChatController {
     chatService;
     constructor(chatService) {
         this.chatService = chatService;
+    }
+    async createChat(createChatDto, req) {
+        try {
+            console.log('createChatDto', createChatDto);
+            const creator_id = req.user.user_id;
+            console.log('CREATOR_ID', creator_id);
+            console.log('participant_id', createChatDto.participant_id);
+            if (createChatDto.chat_type === prisma_main_1.ChatType.DIRECT) {
+                return this.chatService.createDirectChat({
+                    creator_id,
+                    participant_id: createChatDto.participant_id,
+                });
+            }
+            else if (createChatDto.chat_type === prisma_main_1.ChatType.GROUP) {
+                return this.chatService.createGroupChat({
+                    creator_id,
+                    participant_ids: createChatDto.participant_ids,
+                    name: createChatDto.name,
+                });
+            }
+            return {
+                message: 'Chat created successfully',
+            };
+        }
+        catch (error) {
+            throw new common_1.BadRequestException(`Failed to create chat: ${error.message}`);
+        }
     }
     getChats(req) {
         return this.chatService.getChats({ user_id: req.user.user_id });
@@ -36,6 +65,14 @@ let ChatController = class ChatController {
     }
 };
 exports.ChatController = ChatController;
+__decorate([
+    (0, common_1.Post)(),
+    __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [create_chat_dto_1.CreateChatDto, Object]),
+    __metadata("design:returntype", Promise)
+], ChatController.prototype, "createChat", null);
 __decorate([
     (0, common_1.Get)('chats'),
     (0, common_1.UseGuards)(user_guard_1.UserGuard),
@@ -55,7 +92,6 @@ __decorate([
 ], ChatController.prototype, "getMessages", null);
 __decorate([
     (0, common_1.Get)('last-message/:chat_id'),
-    (0, common_1.UseGuards)(user_guard_1.UserGuard),
     __param(0, (0, common_1.Param)('chat_id')),
     __param(1, (0, common_1.Req)()),
     __metadata("design:type", Function),
@@ -72,6 +108,7 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], ChatController.prototype, "getLastMessages", null);
 exports.ChatController = ChatController = __decorate([
+    (0, common_1.UseGuards)(user_guard_1.UserGuard),
     (0, common_1.Controller)('chat'),
     __metadata("design:paramtypes", [chat_service_1.ChatService])
 ], ChatController);

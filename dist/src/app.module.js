@@ -23,10 +23,11 @@ const chat_controller_1 = require("./chat/chat.controller");
 const jwt_1 = require("@nestjs/jwt");
 const file_module_1 = require("./file/file.module");
 const notification_module_1 = require("./notification/notification.module");
-const reauest_logger_middleware_1 = require("./middleware/reauest-logger.middleware");
+const request_logger_middleware_1 = require("./middleware/request-logger.middleware");
+const chat_module_1 = require("./chat/chat.module");
 let AppModule = class AppModule {
     configure(consumer) {
-        consumer.apply(reauest_logger_middleware_1.RequestLoggerMiddleware).forRoutes('*');
+        consumer.apply(request_logger_middleware_1.RequestLoggerMiddleware).forRoutes('*');
     }
 };
 exports.AppModule = AppModule;
@@ -44,6 +45,7 @@ exports.AppModule = AppModule = __decorate([
             company_module_1.CompanyModule,
             file_module_1.FileModule,
             notification_module_1.NotificationModule,
+            chat_module_1.ChatModule,
         ],
         controllers: [app_controller_1.AppController, chat_controller_1.ChatController],
         providers: [app_service_1.AppService, chat_gateway_1.ChatGateway, chat_service_1.ChatService, jwt_1.JwtService],

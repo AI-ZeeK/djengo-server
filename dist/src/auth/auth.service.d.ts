@@ -87,8 +87,8 @@ export declare class AuthService {
         multi_branch: boolean;
     }): Promise<{
         user: {
-            created_at: Date | null;
-            updated_at: Date | null;
+            created_at: Date;
+            updated_at: Date;
             deleted_at: Date | null;
             email: string;
             user_id: string;
@@ -104,7 +104,7 @@ export declare class AuthService {
             is_blocked: boolean | null;
             fcm_token: string;
             refresh_token: string;
-            is_online: boolean | null;
+            last_seen: string;
         } | null;
         access_token: string;
     }>;
@@ -309,8 +309,8 @@ export declare class AuthService {
                 auth: string | null;
                 platform: string;
             }[];
-            created_at: Date | null;
-            updated_at: Date | null;
+            created_at: Date;
+            updated_at: Date;
             deleted_at: Date | null;
             email: string;
             user_id: string;
@@ -326,7 +326,7 @@ export declare class AuthService {
             is_blocked: boolean | null;
             fcm_token: string;
             refresh_token: string;
-            is_online: boolean | null;
+            last_seen: string;
         } | null;
         access_token: string;
     }>;
@@ -342,8 +342,8 @@ export declare class AuthService {
     }>;
     refreshToken(user_id: string): Promise<{
         user: {
-            created_at: Date | null;
-            updated_at: Date | null;
+            created_at: Date;
+            updated_at: Date;
             deleted_at: Date | null;
             email: string;
             user_id: string;
@@ -359,7 +359,7 @@ export declare class AuthService {
             is_blocked: boolean | null;
             fcm_token: string;
             refresh_token: string;
-            is_online: boolean | null;
+            last_seen: string;
         };
         access_token: string;
     }>;

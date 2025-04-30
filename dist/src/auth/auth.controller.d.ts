@@ -9,8 +9,8 @@ export declare class AuthController {
     }>;
     register(data: RegisterDto, res: Response): Promise<{
         user: {
-            created_at: Date | null;
-            updated_at: Date | null;
+            created_at: Date;
+            updated_at: Date;
             deleted_at: Date | null;
             email: string;
             user_id: string;
@@ -26,7 +26,7 @@ export declare class AuthController {
             is_blocked: boolean | null;
             fcm_token: string;
             refresh_token: string;
-            is_online: boolean | null;
+            last_seen: string;
         } | null;
         access_token: string;
     }>;
@@ -227,8 +227,8 @@ export declare class AuthController {
                 auth: string | null;
                 platform: string;
             }[];
-            created_at: Date | null;
-            updated_at: Date | null;
+            created_at: Date;
+            updated_at: Date;
             deleted_at: Date | null;
             email: string;
             user_id: string;
@@ -244,7 +244,7 @@ export declare class AuthController {
             is_blocked: boolean | null;
             fcm_token: string;
             refresh_token: string;
-            is_online: boolean | null;
+            last_seen: string;
         } | null;
         access_token: string;
     }>;
@@ -256,8 +256,8 @@ export declare class AuthController {
     }>;
     refreshAccessToken(data: RefreshTokenDto): Promise<{
         user: {
-            created_at: Date | null;
-            updated_at: Date | null;
+            created_at: Date;
+            updated_at: Date;
             deleted_at: Date | null;
             email: string;
             user_id: string;
@@ -273,7 +273,7 @@ export declare class AuthController {
             is_blocked: boolean | null;
             fcm_token: string;
             refresh_token: string;
-            is_online: boolean | null;
+            last_seen: string;
         };
         access_token: string;
     }>;

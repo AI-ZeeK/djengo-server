@@ -15,49 +15,50 @@ export declare class ChatService {
                 read_at: Date | null;
             }[];
             sender: {
-                email: string;
                 user_id: string;
                 first_name: string | null;
                 last_name: string | null;
+                email: string;
             };
+            chat_id: string;
             created_at: Date;
             updated_at: Date;
             deleted_at: Date | null;
-            file_url: string | null;
-            file_type: string | null;
-            file_size: number | null;
+            status: import("@internal/prisma-main").$Enums.MessageStatus;
             message_id: string;
-            chat_id: string;
             sender_id: string;
             content: string;
             media_urls: string[];
             type: import("@internal/prisma-main").$Enums.MessageType;
-            status: import("@internal/prisma-main").$Enums.MessageStatus;
             duration: number | null;
+            file_url: string | null;
+            file_size: number | null;
+            file_type: string | null;
         }[];
         participants: ({
             user: {
-                email: string;
                 user_id: string;
                 first_name: string | null;
                 last_name: string | null;
+                email: string;
             };
         } & {
-            is_active: boolean;
-            user_id: string;
             chat_id: string;
+            user_id: string;
             joined_at: Date;
             is_admin: boolean;
+            is_active: boolean;
             left_at: Date | null;
             unread_count: number;
         })[];
+        chat_id: string;
+        name: string | null;
+        avatar_url: string | null;
+        chat_type: import("@internal/prisma-main").$Enums.ChatType;
         created_at: Date;
         updated_at: Date;
         deleted_at: Date | null;
-        name: string | null;
-        chat_id: string;
         status: import("@internal/prisma-main").$Enums.ChatStatus;
-        chat_type: import("@internal/prisma-main").$Enums.ChatType;
     }>;
     getMessages({ chat_id, req_user, }: {
         chat_id: string;
@@ -65,15 +66,15 @@ export declare class ChatService {
     }): Promise<({
         read_receipts: ({
             user: {
-                created_at: Date | null;
-                updated_at: Date | null;
+                created_at: Date;
+                updated_at: Date;
                 deleted_at: Date | null;
-                email: string;
                 user_id: string;
                 first_name: string | null;
                 last_name: string | null;
                 password: string | null;
                 date_of_birth: Date;
+                email: string;
                 phone_number: string | null;
                 backup_phone_number: string | null;
                 email_verified: boolean | null;
@@ -82,7 +83,7 @@ export declare class ChatService {
                 is_blocked: boolean | null;
                 fcm_token: string;
                 refresh_token: string;
-                is_online: boolean | null;
+                last_seen: string;
             };
         } & {
             user_id: string;
@@ -90,70 +91,71 @@ export declare class ChatService {
             read_at: Date | null;
         })[];
     } & {
+        chat_id: string;
         created_at: Date;
         updated_at: Date;
         deleted_at: Date | null;
-        file_url: string | null;
-        file_type: string | null;
-        file_size: number | null;
+        status: import("@internal/prisma-main").$Enums.MessageStatus;
         message_id: string;
-        chat_id: string;
         sender_id: string;
         content: string;
         media_urls: string[];
         type: import("@internal/prisma-main").$Enums.MessageType;
-        status: import("@internal/prisma-main").$Enums.MessageStatus;
         duration: number | null;
+        file_url: string | null;
+        file_size: number | null;
+        file_type: string | null;
     })[]>;
     getChats({ user_id }: {
         user_id: string;
     }): Promise<{
         name: string | null;
         unread_count: number;
-        unread_message_counts: {
-            user_id: string;
-            chat_id: string;
-            count: number;
-            last_read_at: Date;
-        }[];
         messages: {
+            chat_id: string;
             created_at: Date;
             updated_at: Date;
             deleted_at: Date | null;
-            file_url: string | null;
-            file_type: string | null;
-            file_size: number | null;
+            status: import("@internal/prisma-main").$Enums.MessageStatus;
             message_id: string;
-            chat_id: string;
             sender_id: string;
             content: string;
             media_urls: string[];
             type: import("@internal/prisma-main").$Enums.MessageType;
-            status: import("@internal/prisma-main").$Enums.MessageStatus;
             duration: number | null;
+            file_url: string | null;
+            file_size: number | null;
+            file_type: string | null;
         }[];
         participants: ({
             user: {
-                email: string;
                 user_id: string;
                 first_name: string | null;
                 last_name: string | null;
+                email: string;
             };
         } & {
-            is_active: boolean;
-            user_id: string;
             chat_id: string;
+            user_id: string;
             joined_at: Date;
             is_admin: boolean;
+            is_active: boolean;
             left_at: Date | null;
             unread_count: number;
         })[];
+        unread_message_counts: {
+            chat_id: string;
+            user_id: string;
+            count: number;
+            last_read_at: Date;
+        }[];
+        chat_id: string;
+        avatar_url: string | null;
+        chat_type: import("@internal/prisma-main").$Enums.ChatType;
         created_at: Date;
         updated_at: Date;
         deleted_at: Date | null;
-        chat_id: string;
         status: import("@internal/prisma-main").$Enums.ChatStatus;
-        chat_type: import("@internal/prisma-main").$Enums.ChatType;
     }[]>;
     isParticipant(chat_id: string, user_id: string): Promise<boolean>;
     leaveChat(chat_id: string, user_id: string): Promise<void>;
@@ -166,15 +168,15 @@ export declare class ChatService {
         duration?: number;
     }): Promise<{
         sender: {
-            created_at: Date | null;
-            updated_at: Date | null;
+            created_at: Date;
+            updated_at: Date;
             deleted_at: Date | null;
-            email: string;
             user_id: string;
             first_name: string | null;
             last_name: string | null;
             password: string | null;
             date_of_birth: Date;
+            email: string;
             phone_number: string | null;
             backup_phone_number: string | null;
             email_verified: boolean | null;
@@ -183,23 +185,23 @@ export declare class ChatService {
             is_blocked: boolean | null;
             fcm_token: string;
             refresh_token: string;
-            is_online: boolean | null;
+            last_seen: string;
         };
     } & {
+        chat_id: string;
         created_at: Date;
         updated_at: Date;
         deleted_at: Date | null;
-        file_url: string | null;
-        file_type: string | null;
-        file_size: number | null;
+        status: import("@internal/prisma-main").$Enums.MessageStatus;
         message_id: string;
-        chat_id: string;
         sender_id: string;
         content: string;
         media_urls: string[];
         type: import("@internal/prisma-main").$Enums.MessageType;
-        status: import("@internal/prisma-main").$Enums.MessageStatus;
         duration: number | null;
+        file_url: string | null;
+        file_size: number | null;
+        file_type: string | null;
     }>;
     private isValidImageUrl;
     private isAudioFile;
@@ -211,31 +213,37 @@ export declare class ChatService {
         creator_id: string;
         participant_id: string;
     }): Promise<Chat>;
-    createGroupChat(creator_id: string, name: string, participant_ids: string[]): Promise<{
+    createGroupChat({ creator_id, name, participant_ids, chat_avatar, }: {
+        creator_id: string;
+        name: string;
+        participant_ids: string[];
+        chat_avatar?: string;
+    }): Promise<{
         participants: ({
             user: {
-                email: string;
                 user_id: string;
                 first_name: string | null;
                 last_name: string | null;
+                email: string;
             };
         } & {
-            is_active: boolean;
-            user_id: string;
             chat_id: string;
+            user_id: string;
             joined_at: Date;
             is_admin: boolean;
+            is_active: boolean;
             left_at: Date | null;
             unread_count: number;
         })[];
     } & {
+        chat_id: string;
+        name: string | null;
+        avatar_url: string | null;
+        chat_type: import("@internal/prisma-main").$Enums.ChatType;
         created_at: Date;
         updated_at: Date;
         deleted_at: Date | null;
-        name: string | null;
-        chat_id: string;
         status: import("@internal/prisma-main").$Enums.ChatStatus;
-        chat_type: import("@internal/prisma-main").$Enums.ChatType;
     }>;
     getChatType({ chat_id, user_id }: {
         chat_id: string;
@@ -248,15 +256,15 @@ export declare class ChatService {
         chat_id: string;
     }): Promise<({
         user: {
-            created_at: Date | null;
-            updated_at: Date | null;
+            created_at: Date;
+            updated_at: Date;
             deleted_at: Date | null;
-            email: string;
             user_id: string;
             first_name: string | null;
             last_name: string | null;
             password: string | null;
             date_of_birth: Date;
+            email: string;
             phone_number: string | null;
             backup_phone_number: string | null;
             email_verified: boolean | null;
@@ -265,14 +273,14 @@ export declare class ChatService {
             is_blocked: boolean | null;
             fcm_token: string;
             refresh_token: string;
-            is_online: boolean | null;
+            last_seen: string;
         };
     } & {
-        is_active: boolean;
-        user_id: string;
         chat_id: string;
+        user_id: string;
         joined_at: Date;
         is_admin: boolean;
+        is_active: boolean;
         left_at: Date | null;
         unread_count: number;
     })[]>;
@@ -281,8 +289,8 @@ export declare class ChatService {
         from_status: MessageStatus;
         to_status: MessageStatus;
     }): Promise<{
-        message_id: string;
         chat_id: string;
+        message_id: string;
         sender_id: string;
     }[]>;
     updateStatus({ message_id, to_status, }: {
@@ -290,15 +298,15 @@ export declare class ChatService {
         to_status: MessageStatus;
     }): Promise<{
         sender: {
-            created_at: Date | null;
-            updated_at: Date | null;
+            created_at: Date;
+            updated_at: Date;
             deleted_at: Date | null;
-            email: string;
             user_id: string;
             first_name: string | null;
             last_name: string | null;
             password: string | null;
             date_of_birth: Date;
+            email: string;
             phone_number: string | null;
             backup_phone_number: string | null;
             email_verified: boolean | null;
@@ -307,38 +315,38 @@ export declare class ChatService {
             is_blocked: boolean | null;
             fcm_token: string;
             refresh_token: string;
-            is_online: boolean | null;
+            last_seen: string;
         };
     } & {
+        chat_id: string;
         created_at: Date;
         updated_at: Date;
         deleted_at: Date | null;
-        file_url: string | null;
-        file_type: string | null;
-        file_size: number | null;
+        status: import("@internal/prisma-main").$Enums.MessageStatus;
         message_id: string;
-        chat_id: string;
         sender_id: string;
         content: string;
         media_urls: string[];
         type: import("@internal/prisma-main").$Enums.MessageType;
-        status: import("@internal/prisma-main").$Enums.MessageStatus;
         duration: number | null;
+        file_url: string | null;
+        file_size: number | null;
+        file_type: string | null;
     }>;
     getChat({ chat_id }: {
         chat_id: string;
     }): Promise<({
         participants: ({
             user: {
-                created_at: Date | null;
-                updated_at: Date | null;
+                created_at: Date;
+                updated_at: Date;
                 deleted_at: Date | null;
-                email: string;
                 user_id: string;
                 first_name: string | null;
                 last_name: string | null;
                 password: string | null;
                 date_of_birth: Date;
+                email: string;
                 phone_number: string | null;
                 backup_phone_number: string | null;
                 email_verified: boolean | null;
@@ -347,25 +355,26 @@ export declare class ChatService {
                 is_blocked: boolean | null;
                 fcm_token: string;
                 refresh_token: string;
-                is_online: boolean | null;
+                last_seen: string;
             };
         } & {
-            is_active: boolean;
-            user_id: string;
             chat_id: string;
+            user_id: string;
             joined_at: Date;
             is_admin: boolean;
+            is_active: boolean;
             left_at: Date | null;
             unread_count: number;
         })[];
     } & {
+        chat_id: string;
+        name: string | null;
+        avatar_url: string | null;
+        chat_type: import("@internal/prisma-main").$Enums.ChatType;
         created_at: Date;
         updated_at: Date;
         deleted_at: Date | null;
-        name: string | null;
-        chat_id: string;
         status: import("@internal/prisma-main").$Enums.ChatStatus;
-        chat_type: import("@internal/prisma-main").$Enums.ChatType;
     }) | null>;
     getMessageStatus({ message_id }: {
         message_id: string;
@@ -392,15 +401,15 @@ export declare class ChatService {
         duration?: number;
     }): Promise<{
         sender: {
-            created_at: Date | null;
-            updated_at: Date | null;
+            created_at: Date;
+            updated_at: Date;
             deleted_at: Date | null;
-            email: string;
             user_id: string;
             first_name: string | null;
             last_name: string | null;
             password: string | null;
             date_of_birth: Date;
+            email: string;
             phone_number: string | null;
             backup_phone_number: string | null;
             email_verified: boolean | null;
@@ -409,151 +418,154 @@ export declare class ChatService {
             is_blocked: boolean | null;
             fcm_token: string;
             refresh_token: string;
-            is_online: boolean | null;
+            last_seen: string;
         };
     } & {
+        chat_id: string;
         created_at: Date;
         updated_at: Date;
         deleted_at: Date | null;
-        file_url: string | null;
-        file_type: string | null;
-        file_size: number | null;
+        status: import("@internal/prisma-main").$Enums.MessageStatus;
         message_id: string;
-        chat_id: string;
         sender_id: string;
         content: string;
         media_urls: string[];
         type: import("@internal/prisma-main").$Enums.MessageType;
-        status: import("@internal/prisma-main").$Enums.MessageStatus;
         duration: number | null;
+        file_url: string | null;
+        file_size: number | null;
+        file_type: string | null;
     }>;
-    createChat({ chat_type, creator_id, participant_ids, name, }: {
+    createChat({ chat_type, creator_id, participant_ids, name, chat_avatar, }: {
         chat_type: ChatType;
         creator_id: string;
         participant_ids: string[];
         name?: string;
+        chat_avatar?: string;
     }): Promise<{
         participants: ({
             user: {
-                email: string;
                 user_id: string;
                 first_name: string | null;
                 last_name: string | null;
+                email: string;
             };
         } & {
-            is_active: boolean;
-            user_id: string;
             chat_id: string;
+            user_id: string;
             joined_at: Date;
             is_admin: boolean;
+            is_active: boolean;
             left_at: Date | null;
             unread_count: number;
         })[];
     } & {
+        chat_id: string;
+        name: string | null;
+        avatar_url: string | null;
+        chat_type: import("@internal/prisma-main").$Enums.ChatType;
         created_at: Date;
         updated_at: Date;
         deleted_at: Date | null;
-        name: string | null;
-        chat_id: string;
         status: import("@internal/prisma-main").$Enums.ChatStatus;
-        chat_type: import("@internal/prisma-main").$Enums.ChatType;
     }>;
     getChatMessages(chat_id: string): Promise<({
         sender: {
-            email: string;
             user_id: string;
             first_name: string | null;
             last_name: string | null;
+            email: string;
         };
     } & {
+        chat_id: string;
         created_at: Date;
         updated_at: Date;
         deleted_at: Date | null;
-        file_url: string | null;
-        file_type: string | null;
-        file_size: number | null;
+        status: import("@internal/prisma-main").$Enums.MessageStatus;
         message_id: string;
-        chat_id: string;
         sender_id: string;
         content: string;
         media_urls: string[];
         type: import("@internal/prisma-main").$Enums.MessageType;
-        status: import("@internal/prisma-main").$Enums.MessageStatus;
         duration: number | null;
+        file_url: string | null;
+        file_size: number | null;
+        file_type: string | null;
     })[]>;
     getLastMessage({ chat_id }: {
         chat_id: string;
     }): Promise<({
         sender: {
-            email: string;
             user_id: string;
             first_name: string | null;
             last_name: string | null;
+            email: string;
         };
     } & {
+        chat_id: string;
         created_at: Date;
         updated_at: Date;
         deleted_at: Date | null;
-        file_url: string | null;
-        file_type: string | null;
-        file_size: number | null;
+        status: import("@internal/prisma-main").$Enums.MessageStatus;
         message_id: string;
-        chat_id: string;
         sender_id: string;
         content: string;
         media_urls: string[];
         type: import("@internal/prisma-main").$Enums.MessageType;
-        status: import("@internal/prisma-main").$Enums.MessageStatus;
         duration: number | null;
+        file_url: string | null;
+        file_size: number | null;
+        file_type: string | null;
     }) | null>;
     getLastMessagesForChats(chat_ids: string[]): Promise<{}>;
     getChatById(chat_id: string): Promise<({
         messages: ({
             sender: {
-                email: string;
                 user_id: string;
                 first_name: string | null;
                 last_name: string | null;
+                email: string;
             };
         } & {
+            chat_id: string;
             created_at: Date;
             updated_at: Date;
             deleted_at: Date | null;
-            file_url: string | null;
-            file_type: string | null;
-            file_size: number | null;
+            status: import("@internal/prisma-main").$Enums.MessageStatus;
             message_id: string;
-            chat_id: string;
             sender_id: string;
             content: string;
             media_urls: string[];
             type: import("@internal/prisma-main").$Enums.MessageType;
-            status: import("@internal/prisma-main").$Enums.MessageStatus;
             duration: number | null;
+            file_url: string | null;
+            file_size: number | null;
+            file_type: string | null;
         })[];
         participants: ({
             user: {
-                email: string;
                 user_id: string;
                 first_name: string | null;
                 last_name: string | null;
+                email: string;
             };
         } & {
-            is_active: boolean;
-            user_id: string;
             chat_id: string;
+            user_id: string;
             joined_at: Date;
             is_admin: boolean;
+            is_active: boolean;
             left_at: Date | null;
             unread_count: number;
         })[];
     } & {
+        chat_id: string;
+        name: string | null;
+        avatar_url: string | null;
+        chat_type: import("@internal/prisma-main").$Enums.ChatType;
         created_at: Date;
         updated_at: Date;
         deleted_at: Date | null;
-        name: string | null;
-        chat_id: string;
         status: import("@internal/prisma-main").$Enums.ChatStatus;
-        chat_type: import("@internal/prisma-main").$Enums.ChatType;
     }) | null>;
 }

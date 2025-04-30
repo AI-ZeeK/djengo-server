@@ -4,6 +4,8 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import { HttpExceptionFilter } from './middleware/filters/http-exception.filter';
+
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
     logger: ['error', 'warn', 'log', 'debug', 'verbose'],
@@ -16,14 +18,16 @@ async function bootstrap() {
       forbidNonWhitelisted: true, // Reject requests with unknown properties
     }),
   );
+
+  // Add global exception filter
+  app.useGlobalFilters(new HttpExceptionFilter());
+
   app.setGlobalPrefix('/api/v1');
   app.enableCors({
     origin: process.env.FRONTEND_URL || 'http://localhost:5000',
     credentials: true,
     allowedHeaders: ['Content-Type', 'Authorization'],
   });
-
-  // app.useGlobalFilters(new HttpExceptionFilter())
 
   const options = new DocumentBuilder()
     .setTitle('Djengo API')
@@ -35,11 +39,6 @@ async function bootstrap() {
   SwaggerModule.setup('swagger', app, document);
 
   const PORT = Number(process.env.PORT) || 8080;
-  // app.enableCors({
-  // origin: 'http://localhost:3000', // Allow requests from this origin
-  // methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
-  // credentials: true,
-  // });
 
   await app.listen(PORT);
   console.log(`Application is running on ${await app.getUrl()}`);

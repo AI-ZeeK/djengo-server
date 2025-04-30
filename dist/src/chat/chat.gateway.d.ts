@@ -7,7 +7,7 @@ import { SendMessageDto } from '../notification/dto/send-message.dto';
 interface ChatSocket extends Socket {
     data: {
         userId?: string;
-        activeChats?: Set<string>;
+        activeChats: Set<string>;
         chatHomeRoom?: string;
     };
 }

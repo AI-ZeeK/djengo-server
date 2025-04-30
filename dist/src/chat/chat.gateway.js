@@ -41,7 +41,10 @@ let ChatGateway = ChatGateway_1 = class ChatGateway {
         this.logger.log(`Client disconnected: ${client.id}`);
         if (client.data.userId) {
             this.userService
-                .updateUserStatus(client.data.userId, false)
+                .updateUserStatus({
+                user_id: client.data.userId,
+                last_seen: 'offline',
+            })
                 .then(() => {
                 return this.chatService.getChats({ user_id: client.data.userId });
             })
@@ -145,9 +148,8 @@ let ChatGateway = ChatGateway_1 = class ChatGateway {
                 chat_id,
             });
             this.server.to(chat_id).emit('new_message', message);
-            const chat = await this.chatService.getChatById(chat_id);
             const messageContent = content;
-            const filteredParticipants = chat?.participants.filter((p) => p.user_id !== data.sender_id);
+            const filteredParticipants = participants.filter((p) => p.user_id !== data.sender_id);
             if (filteredParticipants) {
                 for (const participant of filteredParticipants) {
                     await this.notificationService.sendNotificationToUser(participant.user_id, {
@@ -226,7 +228,10 @@ let ChatGateway = ChatGateway_1 = class ChatGateway {
                 return;
             }
             const status = data.status || 'online';
-            await this.userService.updateUserStatus(userId, status === 'online');
+            await this.userService.updateUserStatus({
+                user_id: userId,
+                last_seen: status === 'online' ? 'online' : new Date().toISOString(),
+            });
             const userChats = await this.chatService.getChats({ user_id: userId });
             for (const chat of userChats) {
                 this.server.to(chat.chat_id).emit('user_status_update', {

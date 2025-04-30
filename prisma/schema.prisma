@@ -119,11 +119,10 @@ model User {
   is_blocked          Boolean? @default(false)
   fcm_token           String   @default("")
   refresh_token       String   @default("")
-  is_online           Boolean? @default(false)
-
-  deleted_at DateTime? @db.Timestamptz(6)
-  created_at DateTime? @default(now()) @db.Timestamptz(6)
-  updated_at DateTime? @default(now()) @updatedAt @db.Timestamptz(6)
+  last_seen           String   @default("online") // Can be "online" or ISO datetime string
+  created_at          DateTime @default(now())
+  updated_at          DateTime @updatedAt
+  deleted_at          DateTime? @db.Timestamptz(6)
 
   uploaded_files        Files[]
   receiver_transactions Transaction[]        @relation("receiver_transactions")
@@ -613,6 +612,7 @@ model AddressEntity {
 model Chat {
   chat_id               String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   name                  String?              @db.VarChar(100)
+  avatar_url            String?              @db.VarChar(255)
   chat_type             ChatType             @default(DIRECT)
   created_at            DateTime             @default(now()) @db.Timestamptz(6)
   updated_at            DateTime             @updatedAt @db.Timestamptz(6)

@@ -257,7 +257,7 @@ export class ChatService {
         duration,
         media_urls = [],
       } = data;
-
+      let times = 0;
       // Validate content based on type
       for (const media_url of media_urls) {
         if (type === MessageType.IMAGE && !this.isValidImageUrl(media_url)) {
@@ -390,6 +390,8 @@ export class ChatService {
     participant_id: string;
   }): Promise<Chat> {
     try {
+      console.log('CREATOR_ID', creator_id);
+      console.log('participant_id', participant_id);
       if (!participant_id || !creator_id)
         throw new BadRequestException('Chat Create constrainsts not met');
       console.log('CREATOR_ID', creator_id);
@@ -489,16 +491,23 @@ export class ChatService {
     }
   }
 
-  async createGroupChat(
-    creator_id: string,
-    name: string,
-    participant_ids: string[],
-  ) {
+  async createGroupChat({
+    creator_id,
+    name,
+    participant_ids,
+    chat_avatar,
+  }: {
+    creator_id: string;
+    name: string;
+    participant_ids: string[];
+    chat_avatar?: string;
+  }) {
     return this.createChat({
       chat_type: ChatType.GROUP,
       creator_id,
       participant_ids,
       name,
+      chat_avatar,
     });
   }
   async getChatType({ chat_id, user_id }: { chat_id: string; user_id }) {
@@ -777,16 +786,28 @@ export class ChatService {
     creator_id,
     participant_ids,
     name,
+    chat_avatar = '',
   }: {
     chat_type: ChatType;
     creator_id: string;
     participant_ids: string[];
     name?: string;
+    chat_avatar?: string;
   }) {
     try {
       this.logger.log(
         `Creating chat with type ${chat_type} and ${participant_ids.length} participants`,
       );
+
+      // Get creator's details
+      const creator = await this.prisma.user.findUnique({
+        where: { user_id: creator_id },
+        select: {
+          first_name: true,
+          last_name: true,
+          email: true,
+        },
+      });
 
       // Ensure creator is included in participants
       if (!participant_ids.includes(creator_id)) {
@@ -805,6 +826,7 @@ export class ChatService {
         data: {
           chat_type,
           name,
+          avatar_url: chat_avatar,
           participants: {
             create: uniqueParticipantIds.map((user_id) => ({
               user_id,
@@ -824,6 +846,27 @@ export class ChatService {
               },
             },
           },
+        },
+      });
+
+      // Create system message about chat creation
+      const creatorName =
+        creator?.first_name && creator?.last_name
+          ? `${creator.first_name} ${creator.last_name}`
+          : creator?.email || 'Unknown user';
+
+      const systemMessage =
+        chat_type === ChatType.GROUP
+          ? `Group "${name}" created by ${creatorName}`
+          : `Chat created by ${creatorName}`;
+
+      await this.prisma.message.create({
+        data: {
+          chat_id: newChat.chat_id,
+          sender_id: 'system',
+          content: systemMessage,
+          type: MessageType.SYSTEM,
+          status: MessageStatus.SENT,
         },
       });
 

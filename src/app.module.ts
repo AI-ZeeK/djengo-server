@@ -14,7 +14,8 @@ import { ChatController } from './chat/chat.controller';
 import { JwtService } from '@nestjs/jwt';
 import { FileModule } from './file/file.module';
 import { NotificationModule } from './notification/notification.module';
-import { RequestLoggerMiddleware } from './middleware/reauest-logger.middleware';
+import { RequestLoggerMiddleware } from './middleware/request-logger.middleware';
+import { ChatModule } from './chat/chat.module';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { RequestLoggerMiddleware } from './middleware/reauest-logger.middleware'
     CompanyModule,
     FileModule,
     NotificationModule,
+    ChatModule,
   ],
   controllers: [AppController, ChatController],
   providers: [AppService, ChatGateway, ChatService, JwtService],

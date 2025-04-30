@@ -213,6 +213,7 @@ let ChatService = ChatService_1 = class ChatService {
     async sendMessage(data) {
         try {
             const { chat_id, sender_id, content, type, duration, media_urls = [], } = data;
+            let times = 0;
             for (const media_url of media_urls) {
                 if (type === prisma_main_1.MessageType.IMAGE && !this.isValidImageUrl(media_url)) {
                     throw new common_1.BadRequestException('Invalid image URL or format');
@@ -311,6 +312,8 @@ let ChatService = ChatService_1 = class ChatService {
     }
     async createDirectChat({ creator_id, participant_id, }) {
         try {
+            console.log('CREATOR_ID', creator_id);
+            console.log('participant_id', participant_id);
             if (!participant_id || !creator_id)
                 throw new common_1.BadRequestException('Chat Create constrainsts not met');
             console.log('CREATOR_ID', creator_id);
@@ -406,12 +409,13 @@ let ChatService = ChatService_1 = class ChatService {
             throw new Error('Failed to create direct chat');
         }
     }
-    async createGroupChat(creator_id, name, participant_ids) {
+    async createGroupChat({ creator_id, name, participant_ids, chat_avatar, }) {
         return this.createChat({
             chat_type: prisma_main_1.ChatType.GROUP,
             creator_id,
             participant_ids,
             name,
+            chat_avatar,
         });
     }
     async getChatType({ chat_id, user_id }) {
@@ -625,9 +629,17 @@ let ChatService = ChatService_1 = class ChatService {
         });
         return message;
     }
-    async createChat({ chat_type, creator_id, participant_ids, name, }) {
+    async createChat({ chat_type, creator_id, participant_ids, name, chat_avatar = '', }) {
         try {
             this.logger.log(`Creating chat with type ${chat_type} and ${participant_ids.length} participants`);
+            const creator = await this.prisma.user.findUnique({
+                where: { user_id: creator_id },
+                select: {
+                    first_name: true,
+                    last_name: true,
+                    email: true,
+                },
+            });
             if (!participant_ids.includes(creator_id)) {
                 participant_ids.push(creator_id);
             }
@@ -637,6 +649,7 @@ let ChatService = ChatService_1 = class ChatService {
                 data: {
                     chat_type,
                     name,
+                    avatar_url: chat_avatar,
                     participants: {
                         create: uniqueParticipantIds.map((user_id) => ({
                             user_id,
@@ -656,6 +669,21 @@ let ChatService = ChatService_1 = class ChatService {
                             },
                         },
                     },
+                },
+            });
+            const creatorName = creator?.first_name && creator?.last_name
+                ? `${creator.first_name} ${creator.last_name}`
+                : creator?.email || 'Unknown user';
+            const systemMessage = chat_type === prisma_main_1.ChatType.GROUP
+                ? `Group "${name}" created by ${creatorName}`
+                : `Chat created by ${creatorName}`;
+            await this.prisma.message.create({
+                data: {
+                    chat_id: newChat.chat_id,
+                    sender_id: 'system',
+                    content: systemMessage,
+                    type: prisma_main_1.MessageType.SYSTEM,
+                    status: prisma_main_1.MessageStatus.SENT,
                 },
             });
             this.logger.log(`Created chat ${newChat.chat_id} with ${newChat.participants.length} participants`);
