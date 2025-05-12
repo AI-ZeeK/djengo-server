@@ -56,13 +56,12 @@ class RegisterDto {
     role_name;
     password;
     confirm_password;
-    company_name;
-    company_email;
-    company_phone_number;
-    company_registration_number;
-    company_registration_date;
+    organization_name;
+    organization_email;
+    organization_phone_number;
+    organization_registration_number;
+    organization_registration_date;
     company_ref;
-    multi_branch;
 }
 exports.RegisterDto = RegisterDto;
 __decorate([
@@ -117,55 +116,55 @@ __decorate([
         example: 'My Company',
         required: false,
     }),
-    (0, class_validator_1.ValidateIf)((o) => o.role_name === enum_1.ROLES_ENUM.COMPANY),
+    (0, class_validator_1.ValidateIf)((o) => o.role_name === enum_1.ROLES_ENUM.BUSINESS_USER),
     (0, class_validator_1.IsNotEmpty)(),
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
-], RegisterDto.prototype, "company_name", void 0);
+], RegisterDto.prototype, "organization_name", void 0);
 __decorate([
     (0, swagger_1.ApiProperty)({
         type: 'string',
         example: 'mycompany@email.com',
         required: false,
     }),
-    (0, class_validator_1.ValidateIf)((o) => o.role_name === enum_1.ROLES_ENUM.COMPANY),
+    (0, class_validator_1.ValidateIf)((o) => o.role_name === enum_1.ROLES_ENUM.BUSINESS_USER),
     (0, class_validator_1.IsNotEmpty)(),
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
-], RegisterDto.prototype, "company_email", void 0);
+], RegisterDto.prototype, "organization_email", void 0);
 __decorate([
     (0, swagger_1.ApiProperty)({
         type: 'string',
         example: '1234567890',
         required: false,
     }),
-    (0, class_validator_1.ValidateIf)((o) => o.role_name === enum_1.ROLES_ENUM.COMPANY),
-    (0, class_validator_1.IsNotEmpty)(),
+    (0, class_validator_1.ValidateIf)((o) => o.role_name === enum_1.ROLES_ENUM.BUSINESS_USER),
+    (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
-], RegisterDto.prototype, "company_phone_number", void 0);
+], RegisterDto.prototype, "organization_phone_number", void 0);
 __decorate([
     (0, swagger_1.ApiProperty)({
         type: 'string',
         example: '1234567890',
         required: false,
     }),
-    (0, class_validator_1.ValidateIf)((o) => o.role_name === enum_1.ROLES_ENUM.COMPANY),
+    (0, class_validator_1.ValidateIf)((o) => o.role_name === enum_1.ROLES_ENUM.BUSINESS_USER),
     (0, class_validator_1.IsNotEmpty)(),
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
-], RegisterDto.prototype, "company_registration_number", void 0);
+], RegisterDto.prototype, "organization_registration_number", void 0);
 __decorate([
     (0, swagger_1.ApiProperty)({
         type: 'string',
         example: '2021-01-01',
         required: false,
     }),
-    (0, class_validator_1.ValidateIf)((o) => o.role_name === enum_1.ROLES_ENUM.COMPANY),
+    (0, class_validator_1.ValidateIf)((o) => o.role_name === enum_1.ROLES_ENUM.BUSINESS_USER),
     (0, class_validator_1.IsNotEmpty)(),
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
-], RegisterDto.prototype, "company_registration_date", void 0);
+], RegisterDto.prototype, "organization_registration_date", void 0);
 __decorate([
     (0, swagger_1.ApiProperty)({
         type: 'string',
@@ -177,17 +176,6 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], RegisterDto.prototype, "company_ref", void 0);
-__decorate([
-    (0, swagger_1.ApiProperty)({
-        type: 'boolean',
-        example: true,
-        required: false,
-    }),
-    (0, class_validator_1.ValidateIf)((o) => o.role_name === enum_1.ROLES_ENUM.COMPANY),
-    (0, class_validator_1.IsNotEmpty)(),
-    (0, class_validator_1.IsBoolean)(),
-    __metadata("design:type", Boolean)
-], RegisterDto.prototype, "multi_branch", void 0);
 class LoginDto {
     email;
     password;

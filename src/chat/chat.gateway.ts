@@ -12,12 +12,11 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { ChatService } from './chat.service';
-import { MessageType, MessageStatus } from '@internal/prisma-main';
 import { Logger } from '@nestjs/common';
 import { NotificationService } from '../notification/notification.service';
 import { UserService } from 'src/user/user.service';
 import { SendMessageDto } from '../notification/dto/send-message.dto';
-
+import { MessageStatus, MessageType } from '@prisma/client';
 // Define a custom socket type that includes our custom data
 interface ChatSocket extends Socket {
   data: {

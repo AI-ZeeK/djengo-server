@@ -5,7 +5,7 @@ export declare class RoleService {
     private prisma;
     constructor(prisma: PrismaService);
     create(createRoleDto: CreateRoleDto): string;
-    findAll(): import("@internal/prisma-main").Prisma.PrismaPromise<{
+    findAll(): import(".prisma/client").Prisma.PrismaPromise<{
         role_id: number;
         role_name: string | null;
         description: string | null;
@@ -14,7 +14,7 @@ export declare class RoleService {
         updated_at: Date | null;
         deleted_at: Date | null;
     }[]>;
-    findMany(): import("@internal/prisma-main").Prisma.PrismaPromise<{
+    findMany(): import(".prisma/client").Prisma.PrismaPromise<{
         role_id: number;
         role_name: string | null;
         description: string | null;

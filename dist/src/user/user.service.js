@@ -12,8 +12,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.UserService = void 0;
 const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../prisma/prisma.service");
-const prisma_main_1 = require("@internal/prisma-main");
 const enum_1 = require("../../prisma/enum");
+const client_1 = require("@prisma/client");
 let UserService = class UserService {
     prisma;
     constructor(prisma) {
@@ -35,11 +35,6 @@ let UserService = class UserService {
                     user_roles: {
                         where: {
                             is_active: true,
-                        },
-                    },
-                    user_companies: {
-                        include: {
-                            company: true,
                         },
                     },
                     ...include,
@@ -142,7 +137,7 @@ let UserService = class UserService {
                     chat_participants: {
                         where: {
                             chat: {
-                                chat_type: prisma_main_1.ChatType.DIRECT,
+                                chat_type: client_1.ChatType.DIRECT,
                             },
                             user_id: {
                                 not: req.user.user_id,

@@ -17,11 +17,11 @@ exports.ChatGateway = void 0;
 const websockets_1 = require("@nestjs/websockets");
 const socket_io_1 = require("socket.io");
 const chat_service_1 = require("./chat.service");
-const prisma_main_1 = require("@internal/prisma-main");
 const common_1 = require("@nestjs/common");
 const notification_service_1 = require("../notification/notification.service");
 const user_service_1 = require("../user/user.service");
 const send_message_dto_1 = require("../notification/dto/send-message.dto");
+const client_1 = require("@prisma/client");
 let ChatGateway = ChatGateway_1 = class ChatGateway {
     chatService;
     userService;
@@ -142,7 +142,7 @@ let ChatGateway = ChatGateway_1 = class ChatGateway {
             });
             message = await this.chatService.updateStatus({
                 message_id: message.message_id,
-                to_status: prisma_main_1.MessageStatus.SENT,
+                to_status: client_1.MessageStatus.SENT,
             });
             const participants = await this.chatService.getParticipants({
                 chat_id,

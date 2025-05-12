@@ -15,12 +15,11 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { Company, Staff, VerificationPurpose } from '@internal/prisma-main';
 import { MailService } from 'src/mail/mail.service';
 import { Helpers } from 'src/lib/helper/helpers';
 import { ROLES_ENUM } from 'prisma/enum';
 import { UserService } from 'src/user/user.service';
-import { Response } from 'express';
+import { VerificationPurpose } from '@prisma/client';
 
 @Injectable()
 export class AuthService {
@@ -33,14 +32,10 @@ export class AuthService {
   ) {}
   async validateRefreshToken({
     user_id,
-    company_id,
-    staff_id,
     refresh_token,
   }: {
     user_id: string;
     refresh_token: string;
-    company_id?: string;
-    staff_id?: string;
   }) {
     try {
       const user = await this.prisma.user.findUnique({ where: { user_id } });
@@ -53,36 +48,14 @@ export class AuthService {
       if (!isValid) {
         return null;
       }
-      let company: Company | null = null;
-      let staff: Staff | null = null;
-      if (company_id) {
-        company = await this.prisma.company.findUnique({
-          where: { company_id },
-        });
-        if (!company) {
-          return null;
-        }
-      }
-      if (staff_id) {
-        staff = await this.prisma.staff.findUnique({
-          where: { staff_id },
-        });
-        if (!staff) {
-          return null;
-        }
-      }
 
       const newAccessToken = this.generateAccessToken({
         user_id,
-        company_id,
-        staff_id,
       });
 
       return {
         user_id: user.user_id,
         access_token: newAccessToken,
-        company,
-        staff,
       };
     } catch (error) {
       console.error('Error validating refresh token:', error);
@@ -90,19 +63,9 @@ export class AuthService {
     }
   }
 
-  async generateAccessToken({
-    user_id,
-    company_id,
-    staff_id,
-  }: {
-    user_id: string;
-    company_id?: string;
-    staff_id?: string;
-  }) {
+  async generateAccessToken({ user_id }: { user_id: string }) {
     const payload = {
       user_id,
-      company_id,
-      staff_id,
     };
 
     const access_token = this.jwtService.sign(payload, {
@@ -195,157 +158,105 @@ export class AuthService {
     email,
     role_name,
     password,
-    company_name,
+    organization_name,
     company_ref,
     phone_number,
-    company_email,
-    company_phone_number,
-    company_registration_date,
-    company_registration_number,
-    multi_branch,
+    organization_email,
+    organization_registration_date,
+    organization_phone_number,
+    organization_registration_number,
   }: {
     email: string;
     password: string;
     role_name: string;
-    company_name: string;
+    organization_name: string;
     company_ref: string;
     phone_number: string;
-    company_email: string;
-    company_phone_number: string;
-    company_registration_date: string;
-    company_registration_number: string;
-    multi_branch: boolean;
+    organization_email: string;
+    organization_phone_number: string;
+    organization_registration_number: string;
+    organization_registration_date: string;
   }) {
     try {
-      const { user, company_id, staff_id } = await this.prisma.$transaction(
-        async (prisma) => {
-          try {
-            let user = await prisma.user.findUnique({
-              where: {
-                email: email.toLowerCase(),
+      const { user } = await this.prisma.$transaction(async (prisma) => {
+        try {
+          let user = await prisma.user.findUnique({
+            where: {
+              email: email.toLowerCase(),
+            },
+          });
+
+          if (user)
+            throw new BadGatewayException('User Exists, Proceed to login');
+          const role = await prisma.role.findUnique({
+            where: {
+              role_name,
+            },
+          });
+
+          if (!role) throw new NotFoundException('role unavailable');
+          const saltRounds = 10; // Number of salt rounds (higher is more secure but slower)
+
+          const hashed_password = await bcrypt.hash(password, saltRounds);
+
+          user = await prisma.user.create({
+            data: {
+              email: email.toLowerCase(),
+              password: hashed_password, // Store the hashed password
+              phone_number,
+              user_roles: {
+                create: {
+                  role_name: role.role_name!,
+                  is_active: true,
+                },
               },
-            });
+            },
+          });
 
-            if (user)
-              throw new BadGatewayException('User Exists, Proceed to login');
-            const role = await prisma.role.findUnique({
-              where: {
-                role_name,
-              },
-            });
-
-            if (!role) throw new NotFoundException('role unavailable');
-            const saltRounds = 10; // Number of salt rounds (higher is more secure but slower)
-
-            const hashed_password = await bcrypt.hash(password, saltRounds);
-
-            user = await prisma.user.create({
+          if (ROLES_ENUM.BUSINESS_USER === role.role_name) {
+            await prisma.organization.create({
               data: {
-                email: email.toLowerCase(),
-                password: hashed_password, // Store the hashed password
-                phone_number,
-                user_roles: {
-                  create: {
-                    role_name: role.role_name!,
-                    is_active: true,
+                name: organization_name,
+                phone_number: organization_phone_number,
+                email: organization_email,
+                registration_number: organization_registration_number,
+                registration_date: organization_registration_date,
+                creator: {
+                  connect: {
+                    user_id: user.user_id,
                   },
                 },
               },
             });
-
-            let company_id = '';
-            let staff_id = '';
-
-            if (ROLES_ENUM.COMPANY === role.role_name) {
-              const company = await prisma.company.create({
-                data: {
-                  company_name,
-                  phone_number: company_phone_number,
-                  email: company_email,
-                  company_ref:
-                    await this.validateCompanyReference(company_name),
-                  registeration_date: company_registration_date,
-                  registration_number: company_registration_number,
-                  multi_branch,
-                },
-              });
-              const user_companies = await prisma.userCompany.findMany({
-                where: {
-                  user_id: user.user_id,
-                },
-              });
-              if (user_companies.length > 0) {
-                const user_company = await prisma.userCompany.create({
-                  data: {
-                    company_id: company.company_id,
-                    user_id: user.user_id,
-                    is_primary: false,
-                    is_owner: true,
-                  },
-                });
-                company_id = user_company.company_id;
-              } else {
-                const user_company = await prisma.userCompany.create({
-                  data: {
-                    company_id: company.company_id,
-                    user_id: user.user_id,
-                    is_primary: true,
-                    is_owner: true,
-                  },
-                });
-                company_id = user_company.company_id;
-              }
-
-              await prisma.companyRole.createMany({
-                data: [
-                  {
-                    company_id: company.company_id,
-                    name: 'Company Owner',
-                    slug: 'company-owner',
-                    is_global: true,
-                    is_active: true,
-                  },
-                  {
-                    company_id: company.company_id,
-                    name: 'Default Staff',
-                    slug: 'defuult-staff',
-                    is_global: true,
-                    is_active: true,
-                  },
-                ],
-              });
-            }
-            if (ROLES_ENUM.STAFF === role.role_name) {
-              const company = await prisma.company.findUnique({
-                where: {
-                  company_ref,
-                },
-              });
-              const staff = await prisma.staff.create({
-                data: {
-                  company_id: company?.company_id,
-                  user_id: user.user_id,
-                },
-              });
-              staff_id = staff.staff_id;
-            }
-
-            const _user = await prisma.user.findUnique({
+          }
+          if (ROLES_ENUM.STAFF === role.role_name) {
+            const company = await prisma.company.findUnique({
               where: {
+                company_ref,
+              },
+            });
+            if (!company) throw new NotFoundException('company not found');
+            await prisma.staff.create({
+              data: {
+                company_id: company?.company_id,
                 user_id: user.user_id,
               },
             });
-
-            return { user: _user, staff_id, company_id };
-          } catch (error) {
-            throw new BadRequestException(error.message);
           }
-        },
-      );
+
+          const _user = await prisma.user.findUnique({
+            where: {
+              user_id: user.user_id,
+            },
+          });
+
+          return { user: _user };
+        } catch (error) {
+          throw new BadRequestException(error.message);
+        }
+      });
       const { access_token } = await this.generateAccessToken({
         user_id: user!.user_id,
-        company_id,
-        staff_id,
       });
 
       return { user, access_token };
@@ -382,17 +293,6 @@ export class AuthService {
       if (!user) {
         throw new NotFoundException('User not found');
       }
-      const company = await this.prisma.userCompany.findFirst({
-        where: {
-          user_id: user.user_id,
-          is_primary: true,
-        },
-      });
-      const staff = await this.prisma.staff.findFirst({
-        where: {
-          user_id: user.user_id,
-        },
-      });
 
       const isPasswordValid = await bcrypt.compare(
         password,
@@ -404,8 +304,6 @@ export class AuthService {
       }
       const { access_token } = await this.generateAccessToken({
         user_id: user.user_id,
-        company_id: company?.company_id,
-        staff_id: staff?.staff_id,
       });
 
       const _user = await this.userService.findOne({

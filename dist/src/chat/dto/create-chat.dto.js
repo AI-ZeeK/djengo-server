@@ -12,7 +12,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.CreateChatDto = void 0;
 const swagger_1 = require("@nestjs/swagger");
 const class_validator_1 = require("class-validator");
-const prisma_main_1 = require("@internal/prisma-main");
+const client_1 = require("@prisma/client");
 class CreateChatDto {
     chat_type;
     name;
@@ -24,10 +24,10 @@ class CreateChatDto {
 exports.CreateChatDto = CreateChatDto;
 __decorate([
     (0, swagger_1.ApiProperty)({
-        enum: prisma_main_1.ChatType,
-        example: prisma_main_1.ChatType.GROUP,
+        enum: client_1.ChatType,
+        example: client_1.ChatType.GROUP,
     }),
-    (0, class_validator_1.IsEnum)(prisma_main_1.ChatType),
+    (0, class_validator_1.IsEnum)(client_1.ChatType),
     (0, class_validator_1.IsNotEmpty)(),
     __metadata("design:type", String)
 ], CreateChatDto.prototype, "chat_type", void 0);
@@ -37,7 +37,7 @@ __decorate([
         example: 'My Group Chat',
         required: false,
     }),
-    (0, class_validator_1.ValidateIf)((o) => o.chat_type === prisma_main_1.ChatType.GROUP),
+    (0, class_validator_1.ValidateIf)((o) => o.chat_type === client_1.ChatType.GROUP),
     (0, class_validator_1.IsNotEmpty)(),
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
@@ -70,7 +70,7 @@ __decorate([
         required: false,
         description: 'Single participant ID for private chats',
     }),
-    (0, class_validator_1.ValidateIf)((o) => o.chat_type === prisma_main_1.ChatType.DIRECT),
+    (0, class_validator_1.ValidateIf)((o) => o.chat_type === client_1.ChatType.DIRECT),
     (0, class_validator_1.IsNotEmpty)(),
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
@@ -81,7 +81,7 @@ __decorate([
         example: ['user1_id', 'user2_id'],
         description: 'Array of participant IDs for group chats',
     }),
-    (0, class_validator_1.ValidateIf)((o) => o.chat_type === prisma_main_1.ChatType.GROUP),
+    (0, class_validator_1.ValidateIf)((o) => o.chat_type === client_1.ChatType.GROUP),
     (0, class_validator_1.IsArray)(),
     (0, class_validator_1.ArrayMinSize)(1),
     (0, class_validator_1.IsString)({ each: true }),

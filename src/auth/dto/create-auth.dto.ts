@@ -83,50 +83,50 @@ export class RegisterDto {
     example: 'My Company',
     required: false,
   })
-  @ValidateIf((o) => o.role_name === ROLES_ENUM.COMPANY) // Only validate if role_name is COMPANY
+  @ValidateIf((o) => o.role_name === ROLES_ENUM.BUSINESS_USER) // Only validate if role_name is COMPANY
   @IsNotEmpty()
   @IsString()
-  company_name: string;
+  organization_name: string;
 
   @ApiProperty({
     type: 'string',
     example: 'mycompany@email.com',
     required: false,
   })
-  @ValidateIf((o) => o.role_name === ROLES_ENUM.COMPANY) // Only validate if role_name is COMPANY
+  @ValidateIf((o) => o.role_name === ROLES_ENUM.BUSINESS_USER) // Only validate if role_name is COMPANY
   @IsNotEmpty()
   @IsString()
-  company_email: string;
+  organization_email: string;
 
   @ApiProperty({
     type: 'string',
     example: '1234567890',
     required: false,
   })
-  @ValidateIf((o) => o.role_name === ROLES_ENUM.COMPANY) // Only validate if role_name is COMPANY
-  @IsNotEmpty()
+  @ValidateIf((o) => o.role_name === ROLES_ENUM.BUSINESS_USER) // Only validate if role_name is COMPANY
+  @IsOptional()
   @IsString()
-  company_phone_number: string;
+  organization_phone_number: string;
 
   @ApiProperty({
     type: 'string',
     example: '1234567890',
     required: false,
   })
-  @ValidateIf((o) => o.role_name === ROLES_ENUM.COMPANY) // Only validate if role_name is COMPANY
+  @ValidateIf((o) => o.role_name === ROLES_ENUM.BUSINESS_USER) // Only validate if role_name is COMPANY
   @IsNotEmpty()
   @IsString()
-  company_registration_number: string;
+  organization_registration_number: string;
 
   @ApiProperty({
     type: 'string',
     example: '2021-01-01',
     required: false,
   })
-  @ValidateIf((o) => o.role_name === ROLES_ENUM.COMPANY) // Only validate if role_name is COMPANY
+  @ValidateIf((o) => o.role_name === ROLES_ENUM.BUSINESS_USER) // Only validate if role_name is COMPANY
   @IsNotEmpty()
   @IsString()
-  company_registration_date: string;
+  organization_registration_date: string;
 
   @ApiProperty({
     type: 'string',
@@ -137,16 +137,6 @@ export class RegisterDto {
   @IsNotEmpty()
   @IsString()
   company_ref: string;
-
-  @ApiProperty({
-    type: 'boolean',
-    example: true,
-    required: false,
-  })
-  @ValidateIf((o) => o.role_name === ROLES_ENUM.COMPANY) // Only validate if role_name is COMPANY
-  @IsNotEmpty()
-  @IsBoolean()
-  multi_branch: boolean;
 }
 export class LoginDto {
   @ApiProperty({

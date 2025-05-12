@@ -5,7 +5,7 @@ export declare class RoleController {
     private readonly roleService;
     constructor(roleService: RoleService);
     create(createRoleDto: CreateRoleDto): string;
-    findAll(): import("@internal/prisma-main").Prisma.PrismaPromise<{
+    findAll(): import(".prisma/client").Prisma.PrismaPromise<{
         role_id: number;
         role_name: string | null;
         description: string | null;

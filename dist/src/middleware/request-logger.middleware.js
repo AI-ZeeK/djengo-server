@@ -16,7 +16,11 @@ let RequestLoggerMiddleware = class RequestLoggerMiddleware {
         this.logger.debug(`${method} ${originalUrl}`);
         this.logger.debug('Query:', query);
         if ('password' in body || 'confirm_password' in body) {
-            const sanitizedBody = { ...body, password: '*****' };
+            const sanitizedBody = {
+                ...body,
+                password: '*****',
+                confirm_password: '*****',
+            };
             this.logger.debug('Body:', sanitizedBody);
         }
         else {

@@ -14,20 +14,18 @@ export declare class CompanyController {
         status: boolean;
         message: string;
         data: {
-            created_at: Date | null;
-            updated_at: Date | null;
+            is_active: boolean;
+            created_at: Date;
+            updated_at: Date;
             deleted_at: Date | null;
             email: string | null;
             phone_number: string | null;
-            backup_phone_number: string | null;
-            email_verified: boolean | null;
-            phone_verified: boolean | null;
             company_id: string;
+            organization_id: string;
+            registration_number: string | null;
             company_ref: string | null;
             company_name: string | null;
             registeration_date: Date | null;
-            registration_number: string | null;
-            multi_branch: boolean | null;
         };
     }>;
     update(id: string, updateCompanyDto: UpdateCompanyDto): string;

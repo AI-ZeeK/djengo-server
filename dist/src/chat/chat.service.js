@@ -13,8 +13,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.ChatService = void 0;
 const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../prisma/prisma.service");
-const prisma_main_1 = require("@internal/prisma-main");
 const file_service_1 = require("../file/file.service");
+const client_1 = require("@prisma/client");
 let ChatService = ChatService_1 = class ChatService {
     prisma;
     fileService;
@@ -215,11 +215,11 @@ let ChatService = ChatService_1 = class ChatService {
             const { chat_id, sender_id, content, type, duration, media_urls = [], } = data;
             let times = 0;
             for (const media_url of media_urls) {
-                if (type === prisma_main_1.MessageType.IMAGE && !this.isValidImageUrl(media_url)) {
+                if (type === client_1.MessageType.IMAGE && !this.isValidImageUrl(media_url)) {
                     throw new common_1.BadRequestException('Invalid image URL or format');
                 }
             }
-            if (type === prisma_main_1.MessageType.AUDIO && !this.isAudioFile(content)) {
+            if (type === client_1.MessageType.AUDIO && !this.isAudioFile(content)) {
                 throw new common_1.BadRequestException('Invalid audio content');
             }
             const message = await this.prisma.message.create({
@@ -228,9 +228,9 @@ let ChatService = ChatService_1 = class ChatService {
                     sender_id,
                     content,
                     type,
-                    status: prisma_main_1.MessageStatus.SENT,
+                    status: client_1.MessageStatus.SENT,
                     media_urls,
-                    duration: type === prisma_main_1.MessageType.AUDIO ? duration || 0 : undefined,
+                    duration: type === client_1.MessageType.AUDIO ? duration || 0 : undefined,
                 },
                 include: {
                     sender: true,
@@ -284,7 +284,7 @@ let ChatService = ChatService_1 = class ChatService {
                     not: user_id,
                 },
                 status: {
-                    in: [prisma_main_1.MessageStatus.SENT, prisma_main_1.MessageStatus.DELIVERED],
+                    in: [client_1.MessageStatus.SENT, client_1.MessageStatus.DELIVERED],
                 },
             },
             select: {
@@ -302,7 +302,7 @@ let ChatService = ChatService_1 = class ChatService {
                 },
             },
             data: {
-                status: prisma_main_1.MessageStatus.READ,
+                status: client_1.MessageStatus.READ,
             },
         });
         return messages.map((m) => ({
@@ -320,7 +320,7 @@ let ChatService = ChatService_1 = class ChatService {
             console.log('participant_id', participant_id);
             const existingChat = await this.prisma.chat.findFirst({
                 where: {
-                    chat_type: prisma_main_1.ChatType.DIRECT,
+                    chat_type: client_1.ChatType.DIRECT,
                     participants: {
                         every: {
                             user_id: {
@@ -411,7 +411,7 @@ let ChatService = ChatService_1 = class ChatService {
     }
     async createGroupChat({ creator_id, name, participant_ids, chat_avatar, }) {
         return this.createChat({
-            chat_type: prisma_main_1.ChatType.GROUP,
+            chat_type: client_1.ChatType.GROUP,
             creator_id,
             participant_ids,
             name,
@@ -580,7 +580,7 @@ let ChatService = ChatService_1 = class ChatService {
             }
             let status = message.status;
             if (message.read_receipts.length > 0) {
-                status = prisma_main_1.MessageStatus.DELIVERED;
+                status = client_1.MessageStatus.DELIVERED;
             }
             return {
                 message_id: message.message_id,
@@ -596,10 +596,10 @@ let ChatService = ChatService_1 = class ChatService {
     async sendMessageWithFile(data) {
         const { chat_id, sender_id, content, type, duration } = data;
         let finalContent = content;
-        if (type === prisma_main_1.MessageType.IMAGE && content.startsWith('data:image/')) {
+        if (type === client_1.MessageType.IMAGE && content.startsWith('data:image/')) {
             finalContent = await this.fileService.uploadBase64File(content, 'image', sender_id);
         }
-        if (type === prisma_main_1.MessageType.AUDIO && content.startsWith('data:audio/')) {
+        if (type === client_1.MessageType.AUDIO && content.startsWith('data:audio/')) {
             finalContent = await this.fileService.uploadBase64File(content, 'audio', sender_id);
         }
         const messageData = {
@@ -607,9 +607,9 @@ let ChatService = ChatService_1 = class ChatService {
             sender_id,
             content: finalContent,
             type,
-            status: prisma_main_1.MessageStatus.SENT,
+            status: client_1.MessageStatus.SENT,
         };
-        if (type === prisma_main_1.MessageType.AUDIO && duration) {
+        if (type === client_1.MessageType.AUDIO && duration) {
             messageData.duration = duration;
         }
         const message = await this.prisma.message.create({
@@ -674,7 +674,7 @@ let ChatService = ChatService_1 = class ChatService {
             const creatorName = creator?.first_name && creator?.last_name
                 ? `${creator.first_name} ${creator.last_name}`
                 : creator?.email || 'Unknown user';
-            const systemMessage = chat_type === prisma_main_1.ChatType.GROUP
+            const systemMessage = chat_type === client_1.ChatType.GROUP
                 ? `Group "${name}" created by ${creatorName}`
                 : `Chat created by ${creatorName}`;
             await this.prisma.message.create({
@@ -682,8 +682,8 @@ let ChatService = ChatService_1 = class ChatService {
                     chat_id: newChat.chat_id,
                     sender_id: 'system',
                     content: systemMessage,
-                    type: prisma_main_1.MessageType.SYSTEM,
-                    status: prisma_main_1.MessageStatus.SENT,
+                    type: client_1.MessageType.SYSTEM,
+                    status: client_1.MessageStatus.SENT,
                 },
             });
             this.logger.log(`Created chat ${newChat.chat_id} with ${newChat.participants.length} participants`);

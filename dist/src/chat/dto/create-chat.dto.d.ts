@@ -1,4 +1,4 @@
-import { ChatType } from '@internal/prisma-main';
+import { ChatType } from '@prisma/client';
 export declare class CreateChatDto {
     chat_type: ChatType;
     name: string;

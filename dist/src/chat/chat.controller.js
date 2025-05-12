@@ -16,8 +16,8 @@ exports.ChatController = void 0;
 const common_1 = require("@nestjs/common");
 const chat_service_1 = require("./chat.service");
 const user_guard_1 = require("../auth/user.guard");
-const prisma_main_1 = require("@internal/prisma-main");
 const create_chat_dto_1 = require("./dto/create-chat.dto");
+const client_1 = require("@prisma/client");
 let ChatController = class ChatController {
     chatService;
     constructor(chatService) {
@@ -29,13 +29,13 @@ let ChatController = class ChatController {
             const creator_id = req.user.user_id;
             console.log('CREATOR_ID', creator_id);
             console.log('participant_id', createChatDto.participant_id);
-            if (createChatDto.chat_type === prisma_main_1.ChatType.DIRECT) {
+            if (createChatDto.chat_type === client_1.ChatType.DIRECT) {
                 return this.chatService.createDirectChat({
                     creator_id,
                     participant_id: createChatDto.participant_id,
                 });
             }
-            else if (createChatDto.chat_type === prisma_main_1.ChatType.GROUP) {
+            else if (createChatDto.chat_type === client_1.ChatType.GROUP) {
                 return this.chatService.createGroupChat({
                     creator_id,
                     participant_ids: createChatDto.participant_ids,

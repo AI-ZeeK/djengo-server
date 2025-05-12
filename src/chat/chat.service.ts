@@ -8,14 +8,10 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
-import {
-  Chat,
-  ChatType,
-  MessageStatus,
-  MessageType,
-} from '@internal/prisma-main';
+
 import { UserAuthorizedRequest } from 'src/interfaces/user.interface';
 import { FileService } from '../file/file.service';
+import { Chat, ChatType, MessageStatus, MessageType } from '@prisma/client';
 
 @Injectable()
 export class ChatService {

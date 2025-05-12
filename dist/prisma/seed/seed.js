@@ -1,12 +1,16 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const prisma_main_1 = require("@internal/prisma-main");
 const enum_1 = require("../enum");
+const prisma_main_1 = require("@internal/prisma-main");
 const prisma = new prisma_main_1.PrismaClient();
 async function main() {
     await seedMainDatabase();
 }
 const roles = [
+    {
+        role_name: enum_1.ROLES_ENUM.BUSINESS_USER,
+        description: 'Works under a company or agency and manages its operations on the platform.',
+    },
     {
         role_name: enum_1.ROLES_ENUM.PLATFORM,
         description: 'Manages platform-level features and settings.',
@@ -14,10 +18,6 @@ const roles = [
     {
         role_name: enum_1.ROLES_ENUM.CLIENT,
         description: 'Books and uses services (e.g., houses, Airbnbs, hotels).',
-    },
-    {
-        role_name: enum_1.ROLES_ENUM.COMPANY,
-        description: 'Represents a company and manages its operations on the platform.',
     },
     {
         role_name: enum_1.ROLES_ENUM.STAFF,
@@ -66,6 +66,12 @@ const address_entity_types = [
     {
         entity_type: enum_1.ADDRESS_TYPE_ENUM.BUSINESS_BRANCH,
         description: 'Additional service locations or offices of a business, enabling broader service coverage and local team management.',
+        max_addresses_per_entity: null,
+        is_active: true,
+    },
+    {
+        entity_type: enum_1.ADDRESS_TYPE_ENUM.CALENDAR_EVENT,
+        description: 'Location of a calendar event, enabling broader service coverage and local team management.',
         max_addresses_per_entity: null,
         is_active: true,
     },

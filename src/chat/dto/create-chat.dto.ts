@@ -8,7 +8,7 @@ import {
   ArrayMinSize,
   IsOptional,
 } from 'class-validator';
-import { ChatType } from '@internal/prisma-main';
+import { ChatType } from '@prisma/client';
 
 export class CreateChatDto {
   @ApiProperty({

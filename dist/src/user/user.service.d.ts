@@ -1,6 +1,6 @@
 import { PrismaService } from 'src/prisma/prisma.service';
-import { Prisma } from '@internal/prisma-main';
 import { UserAuthorizedRequest } from 'src/interfaces/user.interface';
+import { Prisma } from '@prisma/client';
 export declare class UserService {
     private prisma;
     constructor(prisma: PrismaService);
@@ -40,6 +40,17 @@ export declare class UserService {
             is_active: boolean;
             user_id: string;
         }[];
+        entity_permissions: {
+            role_id: number | null;
+            entity_type: string;
+            user_id: string | null;
+            entity_id: string;
+            permission_id: number;
+            is_granted: boolean;
+            granted_at: Date | null;
+            granted_by_user_id: string | null;
+            level: number;
+        }[];
         _count: {
             uploaded_files: number;
             receiver_transactions: number;
@@ -50,20 +61,24 @@ export declare class UserService {
             platform_staff: number;
             user_roles: number;
             message: number;
-            user_companies: number;
             read_receipts: number;
             chat_participants: number;
             unread_message_counts: number;
             push_subscriptions: number;
+            calendar_events: number;
+            granted_permissions: number;
+            organization_access: number;
+            entity_permissions: number;
+            organizations: number;
         };
         staff: {
             role_id: string | null;
             created_at: Date;
             updated_at: Date;
             user_id: string;
-            company_id: string | null;
             staff_id: string;
-            date_joined: Date;
+            company_id: string;
+            branch_id: string | null;
             department_id: string | null;
             designation: string | null;
             profile_complete: boolean;
@@ -82,8 +97,8 @@ export declare class UserService {
             sender_id: string;
             content: string;
             media_urls: string[];
-            type: import("@internal/prisma-main").$Enums.MessageType;
-            status: import("@internal/prisma-main").$Enums.MessageStatus;
+            type: import(".prisma/client").$Enums.MessageType;
+            status: import(".prisma/client").$Enums.MessageStatus;
             duration: number | null;
         }[];
         uploaded_files: {
@@ -103,7 +118,7 @@ export declare class UserService {
         receiver_transactions: {
             created_at: Date;
             company_id: string | null;
-            status: import("@internal/prisma-main").$Enums.TransactionStatus;
+            status: import(".prisma/client").$Enums.TransactionStatus;
             id: string;
             amount_usd: Prisma.Decimal;
             specification: string;
@@ -119,7 +134,7 @@ export declare class UserService {
         sender_transactions: {
             created_at: Date;
             company_id: string | null;
-            status: import("@internal/prisma-main").$Enums.TransactionStatus;
+            status: import(".prisma/client").$Enums.TransactionStatus;
             id: string;
             amount_usd: Prisma.Decimal;
             specification: string;
@@ -136,9 +151,8 @@ export declare class UserService {
             created_at: Date;
             updated_at: Date;
             user_id: string;
-            status: import("@internal/prisma-main").$Enums.ReservationStatus;
+            status: import(".prisma/client").$Enums.ReservationStatus;
             reservation_id: string;
-            branch_id: string;
             room_id: string | null;
             table_id: string | null;
             start_time: Date;
@@ -150,7 +164,7 @@ export declare class UserService {
             user_id: string;
             verification_id: string;
             otp_code: string;
-            purpose: import("@internal/prisma-main").$Enums.VerificationPurpose;
+            purpose: import(".prisma/client").$Enums.VerificationPurpose;
             expires_at: Date;
         }[];
         platform_staff: {
@@ -160,15 +174,6 @@ export declare class UserService {
             updated_at: Date;
             user_id: string;
             platform_staff_id: string;
-        }[];
-        user_companies: {
-            created_at: Date;
-            updated_at: Date;
-            user_id: string;
-            user_company_id: string;
-            company_id: string;
-            is_primary: boolean;
-            is_owner: boolean;
         }[];
         read_receipts: {
             user_id: string;
@@ -200,6 +205,61 @@ export declare class UserService {
             auth: string | null;
             platform: string;
         }[];
+        calendar_events: {
+            description: string | null;
+            is_active: boolean;
+            created_at: Date;
+            updated_at: Date;
+            deleted_at: Date | null;
+            company_id: string;
+            start_time: Date;
+            end_time: Date;
+            event_id: string;
+            title: string;
+            event_type: import(".prisma/client").$Enums.EventType;
+            is_all_day: boolean;
+            color: string | null;
+            is_recurring: boolean;
+            recurrence_rule: string | null;
+            created_by_staff_id: string;
+            is_private: boolean;
+        }[];
+        granted_permissions: {
+            role_id: number | null;
+            entity_type: string;
+            user_id: string | null;
+            entity_id: string;
+            permission_id: number;
+            is_granted: boolean;
+            granted_at: Date | null;
+            granted_by_user_id: string | null;
+            level: number;
+        }[];
+        organization_access: {
+            is_active: boolean;
+            created_at: Date;
+            updated_at: Date;
+            deleted_at: Date | null;
+            user_id: string;
+            permission_level: Prisma.Decimal;
+            access_id: string;
+            organization_id: string;
+        }[];
+        organizations: {
+            is_active: boolean;
+            created_at: Date;
+            updated_at: Date;
+            deleted_at: Date | null;
+            name: string;
+            email: string;
+            phone_number: string | null;
+            email_verified: boolean;
+            phone_verified: boolean;
+            created_by: string;
+            organization_id: string;
+            registration_date: Date | null;
+            registration_number: string | null;
+        }[];
         created_at: Date;
         updated_at: Date;
         deleted_at: Date | null;
@@ -218,6 +278,8 @@ export declare class UserService {
         fcm_token: string;
         refresh_token: string;
         last_seen: string;
+        account_type: import(".prisma/client").$Enums.AccountType;
+        permission_level: number;
     } | null>;
     fetchByEmail({ email }: {
         email: string;
@@ -247,6 +309,8 @@ export declare class UserService {
             fcm_token: string;
             refresh_token: string;
             last_seen: string;
+            account_type: import(".prisma/client").$Enums.AccountType;
+            permission_level: number;
         };
     }>;
     updateUserStatus({ user_id, last_seen, }: {
@@ -271,6 +335,8 @@ export declare class UserService {
         fcm_token: string;
         refresh_token: string;
         last_seen: string;
+        account_type: import(".prisma/client").$Enums.AccountType;
+        permission_level: number;
     }>;
     getUserContacts({ req, name, }: {
         req: UserAuthorizedRequest;

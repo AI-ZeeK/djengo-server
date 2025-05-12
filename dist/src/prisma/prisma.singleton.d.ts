@@ -1,2 +1,2 @@
-import { PrismaClient } from '@internal/prisma-main';
-export declare const prisma: PrismaClient<import("@internal/prisma-main").Prisma.PrismaClientOptions, never, import("@internal/prisma-main/runtime/library").DefaultArgs>;
+import { PrismaClient } from '@prisma/client';
+export declare const prisma: PrismaClient<import(".prisma/client").Prisma.PrismaClientOptions, never, import("@prisma/client/runtime/library").DefaultArgs>;

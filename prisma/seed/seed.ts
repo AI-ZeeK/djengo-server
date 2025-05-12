@@ -4,8 +4,8 @@
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import { PrismaClient as PrismaMainClient } from '@internal/prisma-main';
 import { ADDRESS_TYPE_ENUM, FILE_ENTITY_TYPE_ENUM, ROLES_ENUM } from '../enum';
+import { PrismaClient as PrismaMainClient } from '@internal/prisma-main';
 
 const prisma = new PrismaMainClient();
 
@@ -14,11 +14,11 @@ async function main() {
   await seedMainDatabase();
 }
 const roles = [
-  // {
-  //   role_name: ROLES_ENUM.BUSINESS_USER,
-  //   description:
-  //     'Works under a company or agency and manages its operations on the platform.',
-  // },
+  {
+    role_name: ROLES_ENUM.BUSINESS_USER,
+    description:
+      'Works under a company or agency and manages its operations on the platform.',
+  },
   {
     role_name: ROLES_ENUM.PLATFORM,
     description: 'Manages platform-level features and settings.',
@@ -26,11 +26,6 @@ const roles = [
   {
     role_name: ROLES_ENUM.CLIENT,
     description: 'Books and uses services (e.g., houses, Airbnbs, hotels).',
-  },
-  {
-    role_name: ROLES_ENUM.COMPANY,
-    description:
-      'Represents a company and manages its operations on the platform.',
   },
   {
     role_name: ROLES_ENUM.STAFF,
@@ -90,6 +85,14 @@ const address_entity_types = [
     entity_type: ADDRESS_TYPE_ENUM.BUSINESS_BRANCH,
     description:
       'Additional service locations or offices of a business, enabling broader service coverage and local team management.',
+    // required_fields: ['street', 'building', 'city', 'country'],
+    max_addresses_per_entity: null,
+    is_active: true,
+  },
+  {
+    entity_type: ADDRESS_TYPE_ENUM.CALENDAR_EVENT,
+    description:
+      'Location of a calendar event, enabling broader service coverage and local team management.',
     // required_fields: ['street', 'building', 'city', 'country'],
     max_addresses_per_entity: null,
     is_active: true,

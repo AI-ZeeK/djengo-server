@@ -5,10 +5,9 @@
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { ChatType, Prisma, User } from '@internal/prisma-main';
-import {} from 'src/enums/enum';
 import { ADDRESS_TYPE_ENUM, FILE_ENTITY_TYPE_ENUM } from 'prisma/enum';
 import { UserAuthorizedRequest } from 'src/interfaces/user.interface';
+import { ChatType, Prisma, User } from '@prisma/client';
 
 type UserWithAvatar<T = {}> = User & {
   avatar_url: string | null;
@@ -38,12 +37,6 @@ export class UserService {
           user_roles: {
             where: {
               is_active: true,
-            },
-          },
-
-          user_companies: {
-            include: {
-              company: true,
             },
           },
 

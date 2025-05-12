@@ -12,8 +12,9 @@ import {
 import { ChatService } from './chat.service';
 import { UserGuard } from 'src/auth/user.guard';
 import { UserAuthorizedRequest } from 'src/interfaces/user.interface';
-import { ChatType } from '@internal/prisma-main';
+
 import { CreateChatDto } from './dto/create-chat.dto';
+import { ChatType } from '@prisma/client';
 @UseGuards(UserGuard)
 @Controller('chat')
 export class ChatController {

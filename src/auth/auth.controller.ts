@@ -38,14 +38,13 @@ export class AuthController {
       email: data.email,
       role_name: data.role_name,
       password: data.password,
-      company_name: data.company_name,
+      organization_name: data.organization_name,
       company_ref: data.company_ref,
       phone_number: data.phone_number,
-      company_email: data.company_email,
-      company_registration_date: data.company_registration_date,
-      company_registration_number: data.company_registration_number,
-      multi_branch: data.multi_branch,
-      company_phone_number: data.company_phone_number,
+      organization_email: data.organization_email,
+      organization_registration_date: data.organization_registration_date,
+      organization_registration_number: data.organization_registration_number,
+      organization_phone_number: data.organization_phone_number,
     });
 
     res.cookie('access_token', access_token, cookieOptions);

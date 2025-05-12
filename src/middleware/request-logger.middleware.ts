@@ -15,7 +15,11 @@ export class RequestLoggerMiddleware implements NestMiddleware {
     this.logger.debug('Query:', query);
 
     if ('password' in body || 'confirm_password' in body) {
-      const sanitizedBody = { ...body, password: '*****' };
+      const sanitizedBody = {
+        ...body,
+        password: '*****',
+        confirm_password: '*****',
+      };
       this.logger.debug('Body:', sanitizedBody);
     } else {
       this.logger.debug('Body:', body);

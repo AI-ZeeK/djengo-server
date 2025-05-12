@@ -15,11 +15,11 @@ const common_1 = require("@nestjs/common");
 const jwt_1 = require("@nestjs/jwt");
 const bcrypt = require("bcryptjs");
 const prisma_service_1 = require("../prisma/prisma.service");
-const prisma_main_1 = require("@internal/prisma-main");
 const mail_service_1 = require("../mail/mail.service");
 const helpers_1 = require("../lib/helper/helpers");
 const enum_1 = require("../../prisma/enum");
 const user_service_1 = require("../user/user.service");
+const client_1 = require("@prisma/client");
 let AuthService = AuthService_1 = class AuthService {
     jwtService;
     prisma;
@@ -32,7 +32,7 @@ let AuthService = AuthService_1 = class AuthService {
         this.mailService = mailService;
         this.userService = userService;
     }
-    async validateRefreshToken({ user_id, company_id, staff_id, refresh_token, }) {
+    async validateRefreshToken({ user_id, refresh_token, }) {
         try {
             const user = await this.prisma.user.findUnique({ where: { user_id } });
             if (!user || !user.refresh_token) {
@@ -42,34 +42,12 @@ let AuthService = AuthService_1 = class AuthService {
             if (!isValid) {
                 return null;
             }
-            let company = null;
-            let staff = null;
-            if (company_id) {
-                company = await this.prisma.company.findUnique({
-                    where: { company_id },
-                });
-                if (!company) {
-                    return null;
-                }
-            }
-            if (staff_id) {
-                staff = await this.prisma.staff.findUnique({
-                    where: { staff_id },
-                });
-                if (!staff) {
-                    return null;
-                }
-            }
             const newAccessToken = this.generateAccessToken({
                 user_id,
-                company_id,
-                staff_id,
             });
             return {
                 user_id: user.user_id,
                 access_token: newAccessToken,
-                company,
-                staff,
             };
         }
         catch (error) {
@@ -77,11 +55,9 @@ let AuthService = AuthService_1 = class AuthService {
             return null;
         }
     }
-    async generateAccessToken({ user_id, company_id, staff_id, }) {
+    async generateAccessToken({ user_id }) {
         const payload = {
             user_id,
-            company_id,
-            staff_id,
         };
         const access_token = this.jwtService.sign(payload, {
             secret: process.env.JWT_ACCESS_SECRET,
@@ -156,9 +132,9 @@ let AuthService = AuthService_1 = class AuthService {
             throw new common_1.BadRequestException(error.message);
         }
     }
-    async register({ email, role_name, password, company_name, company_ref, phone_number, company_email, company_phone_number, company_registration_date, company_registration_number, multi_branch, }) {
+    async register({ email, role_name, password, organization_name, company_ref, phone_number, organization_email, organization_registration_date, organization_phone_number, organization_registration_number, }) {
         try {
-            const { user, company_id, staff_id } = await this.prisma.$transaction(async (prisma) => {
+            const { user } = await this.prisma.$transaction(async (prisma) => {
                 try {
                     let user = await prisma.user.findUnique({
                         where: {
@@ -189,64 +165,20 @@ let AuthService = AuthService_1 = class AuthService {
                             },
                         },
                     });
-                    let company_id = '';
-                    let staff_id = '';
-                    if (enum_1.ROLES_ENUM.COMPANY === role.role_name) {
-                        const company = await prisma.company.create({
+                    if (enum_1.ROLES_ENUM.BUSINESS_USER === role.role_name) {
+                        await prisma.organization.create({
                             data: {
-                                company_name,
-                                phone_number: company_phone_number,
-                                email: company_email,
-                                company_ref: await this.validateCompanyReference(company_name),
-                                registeration_date: company_registration_date,
-                                registration_number: company_registration_number,
-                                multi_branch,
+                                name: organization_name,
+                                phone_number: organization_phone_number,
+                                email: organization_email,
+                                registration_number: organization_registration_number,
+                                registration_date: organization_registration_date,
+                                creator: {
+                                    connect: {
+                                        user_id: user.user_id,
+                                    },
+                                },
                             },
-                        });
-                        const user_companies = await prisma.userCompany.findMany({
-                            where: {
-                                user_id: user.user_id,
-                            },
-                        });
-                        if (user_companies.length > 0) {
-                            const user_company = await prisma.userCompany.create({
-                                data: {
-                                    company_id: company.company_id,
-                                    user_id: user.user_id,
-                                    is_primary: false,
-                                    is_owner: true,
-                                },
-                            });
-                            company_id = user_company.company_id;
-                        }
-                        else {
-                            const user_company = await prisma.userCompany.create({
-                                data: {
-                                    company_id: company.company_id,
-                                    user_id: user.user_id,
-                                    is_primary: true,
-                                    is_owner: true,
-                                },
-                            });
-                            company_id = user_company.company_id;
-                        }
-                        await prisma.companyRole.createMany({
-                            data: [
-                                {
-                                    company_id: company.company_id,
-                                    name: 'Company Owner',
-                                    slug: 'company-owner',
-                                    is_global: true,
-                                    is_active: true,
-                                },
-                                {
-                                    company_id: company.company_id,
-                                    name: 'Default Staff',
-                                    slug: 'defuult-staff',
-                                    is_global: true,
-                                    is_active: true,
-                                },
-                            ],
                         });
                     }
                     if (enum_1.ROLES_ENUM.STAFF === role.role_name) {
@@ -255,20 +187,21 @@ let AuthService = AuthService_1 = class AuthService {
                                 company_ref,
                             },
                         });
-                        const staff = await prisma.staff.create({
+                        if (!company)
+                            throw new common_1.NotFoundException('company not found');
+                        await prisma.staff.create({
                             data: {
                                 company_id: company?.company_id,
                                 user_id: user.user_id,
                             },
                         });
-                        staff_id = staff.staff_id;
                     }
                     const _user = await prisma.user.findUnique({
                         where: {
                             user_id: user.user_id,
                         },
                     });
-                    return { user: _user, staff_id, company_id };
+                    return { user: _user };
                 }
                 catch (error) {
                     throw new common_1.BadRequestException(error.message);
@@ -276,8 +209,6 @@ let AuthService = AuthService_1 = class AuthService {
             });
             const { access_token } = await this.generateAccessToken({
                 user_id: user.user_id,
-                company_id,
-                staff_id,
             });
             return { user, access_token };
         }
@@ -312,25 +243,12 @@ let AuthService = AuthService_1 = class AuthService {
             if (!user) {
                 throw new common_1.NotFoundException('User not found');
             }
-            const company = await this.prisma.userCompany.findFirst({
-                where: {
-                    user_id: user.user_id,
-                    is_primary: true,
-                },
-            });
-            const staff = await this.prisma.staff.findFirst({
-                where: {
-                    user_id: user.user_id,
-                },
-            });
             const isPasswordValid = await bcrypt.compare(password, user.password || '');
             if (!isPasswordValid) {
                 throw new common_1.UnauthorizedException('Invalid credentials');
             }
             const { access_token } = await this.generateAccessToken({
                 user_id: user.user_id,
-                company_id: company?.company_id,
-                staff_id: staff?.staff_id,
             });
             const _user = await this.userService.findOne({
                 user_id: user.user_id,
@@ -379,7 +297,7 @@ let AuthService = AuthService_1 = class AuthService {
                 data: {
                     user_id: payload.user_id,
                     otp_code: otp,
-                    purpose: prisma_main_1.VerificationPurpose.EMAIL_VERIFICATION,
+                    purpose: client_1.VerificationPurpose.EMAIL_VERIFICATION,
                     expires_at: helpers_1.Helpers.getFutureTimestamp({ seconds: 95 }),
                 },
             });

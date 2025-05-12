@@ -12,13 +12,12 @@ export declare class RegisterDto {
     role_name: ROLES_ENUM;
     password: string;
     confirm_password: string;
-    company_name: string;
-    company_email: string;
-    company_phone_number: string;
-    company_registration_number: string;
-    company_registration_date: string;
+    organization_name: string;
+    organization_email: string;
+    organization_phone_number: string;
+    organization_registration_number: string;
+    organization_registration_date: string;
     company_ref: string;
-    multi_branch: boolean;
 }
 export declare class LoginDto {
     email: string;
