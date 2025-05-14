@@ -5,7 +5,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { ADDRESS_TYPE_ENUM, FILE_ENTITY_TYPE_ENUM, ROLES_ENUM } from '../enum';
-import { PrismaClient as PrismaMainClient } from '@internal/prisma-main';
+import { PrismaClient as PrismaMainClient } from '@prisma/client';
 
 const prisma = new PrismaMainClient();
 
