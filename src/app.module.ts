@@ -16,6 +16,9 @@ import { FileModule } from './file/file.module';
 import { NotificationModule } from './notification/notification.module';
 import { RequestLoggerMiddleware } from './middleware/request-logger.middleware';
 import { ChatModule } from './chat/chat.module';
+import { UserRoleModule } from './roles/user_role/user_role.module';
+import { OrganizationRoleModule } from './roles/organization_role/organization_role.module';
+import { OrganizationModule } from './organization/organization.module';
 
 @Module({
   imports: [
@@ -31,6 +34,9 @@ import { ChatModule } from './chat/chat.module';
     FileModule,
     NotificationModule,
     ChatModule,
+    UserRoleModule,
+    OrganizationRoleModule,
+    OrganizationModule,
   ],
   controllers: [AppController, ChatController],
   providers: [AppService, ChatGateway, ChatService, JwtService],

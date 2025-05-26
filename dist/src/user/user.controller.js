@@ -16,6 +16,8 @@ exports.UserController = void 0;
 const common_1 = require("@nestjs/common");
 const user_service_1 = require("./user.service");
 const user_guard_1 = require("../auth/user.guard");
+const create_user_dto_1 = require("./dto/create-user.dto");
+const swagger_1 = require("@nestjs/swagger");
 let UserController = class UserController {
     userService;
     constructor(userService) {
@@ -33,9 +35,27 @@ let UserController = class UserController {
     async getUserContacts(req, name) {
         return await this.userService.getUserContacts({ req, name });
     }
+    async updateUser(req_user, data) {
+        return await this.userService.updateUser({ req_user, data });
+    }
 };
 exports.UserController = UserController;
 __decorate([
+    (0, swagger_1.ApiBearerAuth)(),
+    (0, swagger_1.ApiOperation)({ summary: 'Get current user account details' }),
+    (0, swagger_1.ApiResponse)({
+        status: 200,
+        description: 'Returns the current user account information',
+        schema: {
+            type: 'object',
+            properties: {
+                user_id: { type: 'string' },
+                email: { type: 'string' },
+                name: { type: 'string' },
+            },
+        },
+    }),
+    (0, swagger_1.ApiResponse)({ status: 401, description: 'Unauthorized' }),
     (0, common_1.UseGuards)(user_guard_1.UserGuard),
     (0, common_1.Get)('account'),
     __param(0, (0, common_1.Req)()),
@@ -44,6 +64,20 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], UserController.prototype, "getMe", null);
 __decorate([
+    (0, swagger_1.ApiOperation)({ summary: 'Fetch user by email' }),
+    (0, swagger_1.ApiResponse)({
+        status: 200,
+        description: 'Returns user information if found',
+        schema: {
+            type: 'object',
+            properties: {
+                user_id: { type: 'string' },
+                email: { type: 'string' },
+                name: { type: 'string' },
+            },
+        },
+    }),
+    (0, swagger_1.ApiResponse)({ status: 404, description: 'User not found' }),
     (0, common_1.Get)('email/:email'),
     __param(0, (0, common_1.Param)('email')),
     __metadata("design:type", Function),
@@ -51,6 +85,30 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], UserController.prototype, "fetchByEmail", null);
 __decorate([
+    (0, swagger_1.ApiBearerAuth)(),
+    (0, swagger_1.ApiOperation)({ summary: 'Get user contacts' }),
+    (0, swagger_1.ApiQuery)({
+        name: 'name',
+        required: false,
+        description: 'Filter contacts by name',
+        type: String,
+    }),
+    (0, swagger_1.ApiResponse)({
+        status: 200,
+        description: 'Returns list of user contacts',
+        schema: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    user_id: { type: 'string' },
+                    name: { type: 'string' },
+                    email: { type: 'string' },
+                },
+            },
+        },
+    }),
+    (0, swagger_1.ApiResponse)({ status: 401, description: 'Unauthorized' }),
     (0, common_1.UseGuards)(user_guard_1.UserGuard),
     (0, common_1.Get)('contacts'),
     __param(0, (0, common_1.Req)()),
@@ -59,7 +117,33 @@ __decorate([
     __metadata("design:paramtypes", [Object, String]),
     __metadata("design:returntype", Promise)
 ], UserController.prototype, "getUserContacts", null);
+__decorate([
+    (0, common_1.UseGuards)(user_guard_1.UserGuard),
+    (0, swagger_1.ApiBearerAuth)(),
+    (0, swagger_1.ApiOperation)({ summary: 'Update user information' }),
+    (0, swagger_1.ApiResponse)({
+        status: 200,
+        description: 'User information updated successfully',
+        schema: {
+            type: 'object',
+            properties: {
+                user_id: { type: 'string' },
+                email: { type: 'string' },
+                name: { type: 'string' },
+            },
+        },
+    }),
+    (0, swagger_1.ApiResponse)({ status: 401, description: 'Unauthorized' }),
+    (0, swagger_1.ApiResponse)({ status: 400, description: 'Invalid input data' }),
+    (0, common_1.Patch)('update'),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, create_user_dto_1.UpdateUserDto]),
+    __metadata("design:returntype", Promise)
+], UserController.prototype, "updateUser", null);
 exports.UserController = UserController = __decorate([
+    (0, swagger_1.ApiTags)('User'),
     (0, common_1.Controller)('user'),
     __metadata("design:paramtypes", [user_service_1.UserService])
 ], UserController);

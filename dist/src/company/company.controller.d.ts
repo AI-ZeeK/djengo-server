@@ -20,8 +20,8 @@ export declare class CompanyController {
             deleted_at: Date | null;
             email: string | null;
             phone_number: string | null;
-            company_id: string;
             organization_id: string;
+            company_id: string;
             registration_number: string | null;
             company_ref: string | null;
             company_name: string | null;

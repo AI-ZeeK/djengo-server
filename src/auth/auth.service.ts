@@ -19,7 +19,7 @@ import { MailService } from 'src/mail/mail.service';
 import { Helpers } from 'src/lib/helper/helpers';
 import { ROLES_ENUM } from 'prisma/enum';
 import { UserService } from 'src/user/user.service';
-import { VerificationPurpose } from '@prisma/client';
+import { BusinessAccessType, VerificationPurpose } from '@prisma/client';
 
 @Injectable()
 export class AuthService {
@@ -214,7 +214,7 @@ export class AuthService {
           });
 
           if (ROLES_ENUM.BUSINESS_USER === role.role_name) {
-            await prisma.organization.create({
+            const organizaton = await prisma.organization.create({
               data: {
                 name: organization_name,
                 phone_number: organization_phone_number,
@@ -226,6 +226,16 @@ export class AuthService {
                     user_id: user.user_id,
                   },
                 },
+              },
+            });
+
+            await prisma.businessUser.create({
+              data: {
+                user_id: user.user_id,
+                organization_id: organizaton.organization_id,
+                access_type: BusinessAccessType.CREATOR,
+                access_level: 1,
+                is_active: true,
               },
             });
           }

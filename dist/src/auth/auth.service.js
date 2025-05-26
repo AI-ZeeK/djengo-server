@@ -166,7 +166,7 @@ let AuthService = AuthService_1 = class AuthService {
                         },
                     });
                     if (enum_1.ROLES_ENUM.BUSINESS_USER === role.role_name) {
-                        await prisma.organization.create({
+                        const organizaton = await prisma.organization.create({
                             data: {
                                 name: organization_name,
                                 phone_number: organization_phone_number,
@@ -178,6 +178,15 @@ let AuthService = AuthService_1 = class AuthService {
                                         user_id: user.user_id,
                                     },
                                 },
+                            },
+                        });
+                        await prisma.businessUser.create({
+                            data: {
+                                user_id: user.user_id,
+                                organization_id: organizaton.organization_id,
+                                access_type: client_1.BusinessAccessType.CREATOR,
+                                access_level: 1,
+                                is_active: true,
                             },
                         });
                     }

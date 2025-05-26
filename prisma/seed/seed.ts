@@ -6,6 +6,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { ADDRESS_TYPE_ENUM, FILE_ENTITY_TYPE_ENUM, ROLES_ENUM } from '../enum';
 import { PrismaClient as PrismaMainClient } from '@prisma/client';
+import { permissions } from './organization_permissions';
 
 const prisma = new PrismaMainClient();
 
@@ -51,6 +52,13 @@ const file_entity_types = [
     entity_type: FILE_ENTITY_TYPE_ENUM.BUSINESS_LOGO,
     description:
       'Company logos and branding images for service provider businesses.',
+    max_file_size: 10485760, // 10MB
+    allowed_mime_types: ['image/jpeg', 'image/png', 'image/svg+xml'],
+    is_active: true,
+  },
+  {
+    entity_type: FILE_ENTITY_TYPE_ENUM.ORGANIZATION_LOGO,
+    description: 'Organization logos and branding images.',
     max_file_size: 10485760, // 10MB
     allowed_mime_types: ['image/jpeg', 'image/png', 'image/svg+xml'],
     is_active: true,
@@ -263,6 +271,20 @@ async function seedMainDatabase() {
       });
       console.log(
         `Created/Updated address entity type in main: ${type.entity_type}`,
+      );
+    }
+
+    for (const permission of permissions) {
+      await prisma.permission.upsert({
+        where: { permission_name: permission.permission_name },
+        update: {},
+        create: {
+          permission_name: permission.permission_name,
+          description: permission.description,
+        },
+      });
+      console.log(
+        `permission:- ${permission.permission_name} seeded successfully`,
       );
     }
   } catch (error) {

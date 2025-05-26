@@ -90,6 +90,81 @@ model Role {
   @@schema("roles")
 }
 
+model BusinessUserRole {
+  business_user_id String    @id @db.Uuid
+  role_id          String    @db.Uuid
+  is_active        Boolean   @default(true)
+  created_at       DateTime  @default(now())
+  deleted_at       DateTime? @db.Timestamptz(6)
+
+  business_user BusinessUser     @relation(fields: [business_user_id], references: [business_user_id], onDelete: Cascade)
+  role          OrganizationRole @relation(fields: [role_id], references: [role_id], onDelete: Cascade)
+
+  @@map("business_user_roles")
+  @@schema("roles")
+}
+
+model OrganizationRole {
+  role_id             String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id     String             @db.Uuid
+  company_id          String?            @db.Uuid
+  branch_id           String?            @db.Uuid
+  name                String             @default("")
+  slug                String             @default("")
+  description         String?
+  is_active           Boolean            @default(true)
+  level_number        Int                @default(0)
+  reports_to          String?            @db.Uuid
+  is_org_level        Boolean            @default(false)
+  deleted_at          DateTime?          @db.Timestamptz(6)
+  created_at          DateTime           @default(now())
+  updated_at          DateTime           @updatedAt
+  creator_id          String?            @db.Uuid
+  // Relations
+  created_by          User?              @relation("created_organization_roles", fields: [creator_id], references: [user_id], onDelete: Cascade)
+  organization        Organization       @relation(fields: [organization_id], references: [organization_id], onDelete: Cascade)
+  company             Company?           @relation(fields: [company_id], references: [company_id], onDelete: Cascade)
+  branch              Branch?            @relation(fields: [branch_id], references: [branch_id])
+  superior            OrganizationRole?  @relation("RoleHierarchy", fields: [reports_to], references: [role_id])
+  subordinates        OrganizationRole[] @relation("RoleHierarchy")
+  staff_company_roles StaffCompanyRole[]
+  entity_permissions  EntityPermission[]
+  business_user_roles BusinessUserRole[]
+
+  @@unique([company_id, slug]) // Global role constraint
+  @@unique([organization_id, slug, is_org_level], name: "unique_organization_role") // Global role constraint
+  @@unique([company_id, branch_id, slug]) // Branch-specific role constraint
+  @@index([is_org_level])
+  @@map("organization_roles")
+  @@schema("roles")
+}
+
+model UserPermissionRestriction {
+  restriction_id   String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id          String    @db.Uuid
+  permission_name  String    @db.VarChar(50)
+  restriction_type String    @db.VarChar(50) // e.g., 'payroll', 'branch', 'page'
+  is_active        Boolean   @default(true)
+  reason           String?   @db.Text
+  restricted_by    String    @db.Uuid
+  restricted_at    DateTime  @default(now())
+  expires_at       DateTime?
+  created_at       DateTime  @default(now())
+  updated_at       DateTime  @updatedAt
+  deleted_at       DateTime? @db.Timestamptz(6)
+
+  // Relations
+  user               User @relation(fields: [user_id], references: [user_id], onDelete: Cascade)
+  restricted_by_user User @relation("restricted_by", fields: [restricted_by], references: [user_id])
+
+  @@unique([user_id, permission_name, is_active])
+  @@index([user_id])
+  @@index([permission_name])
+  @@index([restriction_type])
+  @@map("user_permission_restrictions")
+  @@schema("roles")
+}
+
 model UserRole {
   user_id   String  @db.Uuid
   role_name String  @default("")
@@ -126,24 +201,39 @@ model User {
   updated_at          DateTime    @updatedAt
   deleted_at          DateTime?   @db.Timestamptz(6)
 
-  uploaded_files        Files[]
-  receiver_transactions Transaction[]        @relation("receiver_transactions")
-  sender_transactions   Transaction[]        @relation("sender_transactions")
-  staff                 Staff[]
-  reservations          Reservation[]
-  verifications         Verification[]
-  platform_staff        PlatformStaff[]
-  user_roles            UserRole[]
-  message               Message[]
-  read_receipts         MessageRead[]
-  chat_participants     ChatParticipant[]
-  unread_message_counts UnreadMessageCount[]
-  push_subscriptions    PushSubscription[]
-  calendar_events       CalendarEvent[]      @relation("UserCalendarEvents")
-  granted_permissions   EntityPermission[]   @relation("GrantedPermissions")
-  organization_access   OrganizationAccess[]
-  entity_permissions    EntityPermission[]
-  organizations         Organization[]       @relation("CreatedOrganizations")
+  uploaded_files               Files[]
+  receiver_transactions        Transaction[]               @relation("receiver_transactions")
+  sender_transactions          Transaction[]               @relation("sender_transactions")
+  staff                        Staff[]
+  reservations                 Reservation[]
+  verifications                Verification[]
+  platform_staff               PlatformStaff[]
+  user_roles                   UserRole[]
+  message                      Message[]
+  read_receipts                MessageRead[]
+  chat_participants            ChatParticipant[]
+  unread_message_counts        UnreadMessageCount[]
+  push_subscriptions           PushSubscription[]
+  calendar_events              CalendarEvent[]             @relation("user_calendar_events")
+  granted_permissions          EntityPermission[]          @relation("granted_permissions")
+  organization_access          OrganizationAccess[]
+  entity_permissions           EntityPermission[]
+  organizations                Organization[]              @relation("created_organizations")
+  business_users               BusinessUser[]
+  permission_restrictions      UserPermissionRestriction[]
+  restricted_permissions       UserPermissionRestriction[] @relation("restricted_by")
+  approved_extra_fund_requests ExtraFundRequest[]          @relation("fund_request_approver")
+  monthly_budgets              MonthlyBudget[]
+  branch_budget_allocations    BranchBudgetAllocation[]
+  extra_fund_requests          ExtraFundRequest[]          @relation("fund_request_requester")
+  disbursed_funds              BranchFundDisbursement[]    @relation("fund_disburser")
+  assigned_tasks               Task[]                      @relation("assigned_tasks")
+  received_tasks               Task[]                      @relation("received_tasks")
+  task_comments                TaskComment[]
+  customer_events              DailyEvent[]                @relation("customer_events")
+  approved_staff_events        StaffEvent[]                @relation("staff_event_approver")
+  activity_logs                ActivityLog[]
+  created_organization_roles   OrganizationRole[]          @relation("created_organization_roles")
 
   @@index([email], map: "idx_users_email")
   @@index([phone_number], map: "idx_users_phone_number")
@@ -167,14 +257,54 @@ model Organization {
   deleted_at          DateTime? @db.Timestamptz(6)
 
   // Relations
-  creator        User                 @relation("CreatedOrganizations", fields: [created_by], references: [user_id])
-  companies      Company[]
-  access_control OrganizationAccess[]
+  creator            User                 @relation("created_organizations", fields: [created_by], references: [user_id])
+  companies          Company[]
+  access_control     OrganizationAccess[]
+  organization_roles OrganizationRole[]
+  business_users     BusinessUser[]
+  monthly_budgets    MonthlyBudget[]
 
   @@index([email], map: "idx_organizations_email")
   @@index([phone_number], map: "idx_organizations_phone_number")
   @@index([created_by], map: "idx_organizations_created_by")
   @@map("organizations")
+  @@schema("organizations")
+}
+
+model BusinessUser {
+  business_user_id String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id          String             @db.Uuid
+  email            String             @unique @db.VarChar(255)
+  phone_number     String?            @unique @db.VarChar(20)
+  organization_id  String             @db.Uuid
+  access_type      BusinessAccessType @default(CREATOR)
+  access_level     Int                @default(1)
+  is_active        Boolean            @default(true)
+  notes            String?            @db.Text
+  created_at       DateTime           @default(now())
+  updated_at       DateTime           @updatedAt
+  deleted_at       DateTime?          @db.Timestamptz(6)
+
+  // Relations
+  user                User               @relation(fields: [user_id], references: [user_id], onDelete: Cascade)
+  organization        Organization       @relation(fields: [organization_id], references: [organization_id], onDelete: Cascade)
+  business_user_roles BusinessUserRole[]
+
+  @@unique([user_id, is_active], name: "unique_active_user")
+  @@unique([user_id, organization_id])
+  @@index([user_id])
+  @@index([organization_id])
+  @@map("business_users")
+  @@schema("profiles")
+}
+
+enum BusinessAccessType {
+  CREATOR
+  PARTNER
+  VENDOR
+  CLIENT
+  INVESTOR
+
   @@schema("organizations")
 }
 
@@ -193,11 +323,11 @@ model Company {
   deleted_at          DateTime? @db.Timestamptz(6)
 
   // Relations
-  organization      Organization      @relation(fields: [organization_id], references: [organization_id], onDelete: Cascade)
+  organization      Organization       @relation(fields: [organization_id], references: [organization_id], onDelete: Cascade)
   branches          Branch[]
   departments       Department[]
   staff             Staff[]
-  company_roles     CompanyRole[]
+  company_roles     OrganizationRole[]
   department_roles  DepartmentRole[]
   calendar_events   CalendarEvent[]
   hotels            Hotel[]
@@ -207,6 +337,10 @@ model Company {
   global_reports    GlobalReport[]
   transactions      Transaction[]
   payroll_schedules PayrollSchedule[]
+  tasks             Task[]
+  daily_events      DailyEvent[]
+  staff_events      StaffEvent[]
+  activity_logs     ActivityLog[]
 
   @@index([organization_id])
   @@index([email])
@@ -229,14 +363,21 @@ model Branch {
   restaurant_id String?   @db.Uuid
 
   // Relations
-  company        Company        @relation(fields: [company_id], references: [company_id], onDelete: Cascade)
-  restaurant     Restaurant[]
-  staffs         Staff[]
-  hotels         Hotel[]
-  tables         Table[] // Must have at least one table
-  company_roles  CompanyRole[]
-  departments    Department[]
-  branch_reports BranchReport[]
+  company Company @relation(fields: [company_id], references: [company_id], onDelete: Cascade)
+
+  restaurant          Restaurant[]
+  staffs              Staff[]
+  hotels              Hotel[]
+  tables              Table[] // Must have at least one table
+  company_roles       OrganizationRole[]
+  departments         Department[]
+  branch_reports      BranchReport[]
+  budget_allocations  BranchBudgetAllocation[]
+  extra_fund_requests ExtraFundRequest[]
+  transactions        Transaction[]
+  daily_events        DailyEvent[]
+  staff_events        StaffEvent[]
+  activity_logs       ActivityLog[]
 
   @@index([company_id])
   @@index([email])
@@ -255,7 +396,7 @@ model Staff {
   designation      String?
   profile_complete Boolean  @default(false)
   payroll_active   Boolean  @default(true)
-  staff_active     Boolean  @default(true)
+  is_active        Boolean  @default(true)
   created_at       DateTime @default(now())
   updated_at       DateTime @updatedAt
 
@@ -268,8 +409,9 @@ model Staff {
   created_events         CalendarEvent[]
   staff_department_roles StaffDepartmentRole[]
   staff_company_roles    StaffCompanyRole[]
+  staff_events           StaffEvent[]
 
-  @@unique([user_id, staff_active])
+  @@unique([user_id, is_active])
   @@index([company_id])
   @@index([branch_id])
   @@index([user_id])
@@ -292,6 +434,9 @@ model Department {
   branch           Branch?          @relation(fields: [branch_id], references: [branch_id])
   staff            Staff[]
   department_roles DepartmentRole[]
+  tasks            Task[]
+  staff_events     StaffEvent[]
+  activity_logs    ActivityLog[]
 
   @@unique([company_id, name])
   @@map("departments")
@@ -336,38 +481,13 @@ model CompanyMetaData {
   @@schema("organizations")
 }
 
-model CompanyRole {
-  role_id      String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  company_id   String  @db.Uuid
-  branch_id    String? @db.Uuid
-  name         String  @default("")
-  slug         String  @default("")
-  description  String?
-  is_active    Boolean @default(true)
-  is_global    Boolean @default(false)
-  level_number Int     @default(0)
-  reports_to   String? @db.Uuid
-
-  // Relations
-  company             Company            @relation(fields: [company_id], references: [company_id], onDelete: Cascade)
-  branch              Branch?            @relation(fields: [branch_id], references: [branch_id])
-  superior            CompanyRole?       @relation("RoleHierarchy", fields: [reports_to], references: [role_id])
-  subordinates        CompanyRole[]      @relation("RoleHierarchy")
-  staff_company_roles StaffCompanyRole[]
-
-  @@unique([company_id, slug]) // Global role constraint
-  @@unique([company_id, branch_id, slug]) // Branch-specific role constraint
-  @@map("company_roles")
-  @@schema("organizations")
-}
-
 model StaffCompanyRole {
   staff_id        String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   company_role_id String  @db.Uuid
   is_active       Boolean @default(true)
 
-  staff        Staff       @relation(fields: [staff_id], references: [staff_id])
-  company_role CompanyRole @relation(fields: [company_role_id], references: [role_id])
+  staff        Staff            @relation(fields: [staff_id], references: [staff_id])
+  company_role OrganizationRole @relation(fields: [company_role_id], references: [role_id])
 
   @@unique([staff_id, company_role_id, is_active])
   @@map("staff_company_roles")
@@ -430,14 +550,24 @@ model CalendarEvent {
   updated_at          DateTime  @updatedAt
   deleted_at          DateTime? @db.Timestamptz(6)
 
+  // New fields for system events
+  system_event_id   String? @db.Uuid // ID of the related system event (order, payment, etc.)
+  system_event_type String? @db.VarChar(50) // Type of system event
+  system_event_data Json? // Additional data for system events
+  notification_sent Boolean @default(false) // Whether notification was sent for this event
+
   // Relations
   company    Company @relation(fields: [company_id], references: [company_id], onDelete: Cascade)
   created_by Staff   @relation(fields: [created_by_staff_id], references: [staff_id], onDelete: Cascade)
-  users      User[]  @relation("UserCalendarEvents")
+  users      User[]  @relation("user_calendar_events")
+  task       Task?   @relation(fields: [task_id], references: [task_id])
+  task_id    String? @db.Uuid
 
   @@index([company_id])
   @@index([created_by_staff_id])
   @@index([start_time])
+  @@index([system_event_id])
+  @@index([system_event_type])
   @@map("calendar_events")
   @@schema("organizations")
 }
@@ -605,10 +735,10 @@ model Table {
 }
 
 model TableType {
-  table_type_id   String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  table_type_name String  @db.VarChar(50)
-  description     String?
-  capacity        Int
+  table_type_id String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name          String  @db.VarChar(50)
+  description   String?
+  capacity      Int
 
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
@@ -946,7 +1076,7 @@ model Category {
 }
 
 model Transaction {
-  id               String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  transaction_id   String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   amount_usd       Decimal
   specification    String            @db.VarChar(255)
   transaction_ref  String?           @unique
@@ -957,6 +1087,7 @@ model Transaction {
 
   receiver_user_id    String?   @db.Uuid
   company_id          String?   @db.Uuid
+  branch_id           String?   @db.Uuid
   sender_user_id      String?   @db.Uuid
   transaction_type_id Int?      @map("transaction_type_id")
   created_at          DateTime  @default(now()) @db.Timestamptz(6)
@@ -966,7 +1097,10 @@ model Transaction {
   receiver_user    User?            @relation("receiver_transactions", fields: [receiver_user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
   sender_user      User?            @relation("sender_transactions", fields: [sender_user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
   company          Company?         @relation(fields: [company_id], references: [company_id], onDelete: NoAction, onUpdate: NoAction)
+  branch           Branch?          @relation(fields: [branch_id], references: [branch_id], onDelete: NoAction, onUpdate: NoAction)
   currency         Currency         @relation(fields: [currency_code], references: [currency_code])
+
+  disbursements BranchFundDisbursement[]
 
   @@map("transactions")
   @@schema("financials")
@@ -992,15 +1126,16 @@ model FileEntityType {
 }
 
 model Files {
-  file_id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  file_id             String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   file_url            String?
   file_type           String?
   file_size           Int?
-  description         String?   @db.VarChar(50)
-  uploaded_at         DateTime? @default(now()) @db.Timestamptz(6)
-  uploaded_by_user_id String?   @db.Uuid
-  entity_id           String    @db.Uuid
+  description         String?          @db.VarChar(50)
+  uploaded_at         DateTime?        @default(now()) @db.Timestamptz(6)
+  uploaded_by_user_id String?          @db.Uuid
+  entity_id           String           @db.Uuid
   entity_type_id      Int
+  task_attachments    TaskAttachment[]
 
   created_at DateTime  @default(now()) @db.Timestamptz(6)
   updated_at DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
@@ -1079,6 +1214,14 @@ enum EventType {
   REMINDER
   HOLIDAY
   LEAVE
+  ORDER_CREATED
+  ORDER_UPDATED
+  ORDER_COMPLETED
+  PAYMENT_RECEIVED
+  PAYMENT_DUE
+  INVOICE_GENERATED
+  INVOICE_DUE
+  SYSTEM_NOTIFICATION
   OTHER
 
   @@schema("organizations")
@@ -1106,19 +1249,21 @@ model Permission {
 }
 
 model EntityPermission {
-  entity_id          String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  entity_type        String     @db.VarChar(20)
-  role_id            Int?
-  user_id            String?    @db.Uuid
-  permission_id      Int
-  is_granted         Boolean    @default(true)
-  granted_at         DateTime?  @default(now()) @db.Timestamptz(6)
-  granted_by_user_id String?    @db.Uuid
-  level              Int        @default(1)
-  user               User?      @relation(fields: [granted_by_user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
-  permission         Permission @relation(fields: [permission_id], references: [permission_id], onDelete: NoAction, onUpdate: NoAction)
-  role               Role?      @relation(fields: [role_id], references: [role_id], onDelete: NoAction, onUpdate: NoAction)
-  granted_user       User?      @relation("GrantedPermissions", fields: [user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+  entity_id            String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  entity_type          String            @db.VarChar(20)
+  role_id              Int?
+  organization_role_id String?           @db.Uuid
+  user_id              String?           @db.Uuid
+  permission_id        Int
+  is_granted           Boolean           @default(true)
+  granted_at           DateTime?         @default(now()) @db.Timestamptz(6)
+  granted_by_user_id   String?           @db.Uuid
+  level                Int               @default(1)
+  user                 User?             @relation(fields: [granted_by_user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+  permission           Permission        @relation(fields: [permission_id], references: [permission_id], onDelete: NoAction, onUpdate: NoAction)
+  role                 Role?             @relation(fields: [role_id], references: [role_id], onDelete: NoAction, onUpdate: NoAction)
+  organization_role    OrganizationRole? @relation(fields: [organization_role_id], references: [role_id], onDelete: NoAction, onUpdate: NoAction)
+  granted_user         User?             @relation("granted_permissions", fields: [user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
 
   @@unique([entity_id, entity_type, permission_id])
   @@index([granted_by_user_id], map: "idx_entity_permissions_granted_by")
@@ -1213,5 +1358,550 @@ model OrganizationAccess {
   @@index([user_id])
   @@index([organization_id])
   @@map("organization_access")
+  @@schema("organizations")
+}
+
+model MonthlyBudget {
+  budget_id        String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id  String       @db.Uuid
+  month            Int
+  year             Int
+  total_amount     Decimal      @db.Decimal(12, 2)
+  allocated_amount Decimal      @db.Decimal(12, 2)
+  status           BudgetStatus @default(PENDING)
+  created_at       DateTime     @default(now())
+  updated_at       DateTime     @updatedAt
+  deleted_at       DateTime?    @db.Timestamptz(6)
+  approved_by      String?      @db.Uuid
+  approved_at      DateTime
+
+  // Relations
+  organization Organization             @relation(fields: [organization_id], references: [organization_id], onDelete: Cascade)
+  approver     User?                    @relation(fields: [approved_by], references: [user_id])
+  allocations  BranchBudgetAllocation[]
+
+  @@unique([organization_id, month, year])
+  @@index([organization_id])
+  @@map("monthly_budgets")
+  @@schema("financials")
+}
+
+model BranchBudgetAllocation {
+  allocation_id    String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  budget_id        String           @db.Uuid
+  branch_id        String           @db.Uuid
+  allocated_amount Decimal          @db.Decimal(12, 2)
+  allocated_by     String           @db.Uuid
+  status           AllocationStatus @default(PENDING)
+  created_at       DateTime         @default(now())
+  updated_at       DateTime         @updatedAt
+  deleted_at       DateTime?        @db.Timestamptz(6)
+
+  // Relations
+  budget        MonthlyBudget            @relation(fields: [budget_id], references: [budget_id], onDelete: Cascade)
+  branch        Branch                   @relation(fields: [branch_id], references: [branch_id], onDelete: Cascade)
+  allocator     User                     @relation(fields: [allocated_by], references: [user_id])
+  disbursements BranchFundDisbursement[]
+
+  @@unique([budget_id, branch_id])
+  @@index([budget_id])
+  @@index([branch_id])
+  @@map("branch_budget_allocations")
+  @@schema("financials")
+}
+
+model BranchFundDisbursement {
+  disbursement_id String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  allocation_id   String             @db.Uuid
+  amount          Decimal            @db.Decimal(12, 2)
+  purpose         String             @db.Text
+  status          DisbursementStatus @default(PENDING)
+  disbursed_by    String             @db.Uuid
+  disbursed_at    DateTime?
+  transaction_id  String?            @db.Uuid
+  notes           String?
+  created_at      DateTime           @default(now())
+  updated_at      DateTime           @updatedAt
+  deleted_at      DateTime?          @db.Timestamptz(6)
+
+  // Relations
+  allocation  BranchBudgetAllocation @relation(fields: [allocation_id], references: [allocation_id])
+  disburser   User                   @relation("fund_disburser", fields: [disbursed_by], references: [user_id])
+  transaction Transaction?           @relation(fields: [transaction_id], references: [transaction_id])
+
+  @@index([disbursed_by])
+  @@map("branch_fund_disbursements")
+  @@schema("financials")
+}
+
+model ExtraFundRequest {
+  request_id    String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  branch_id     String        @db.Uuid
+  amount        Decimal       @db.Decimal(12, 2)
+  purpose       String        @db.Text
+  justification String        @db.Text
+  status        RequestStatus @default(PENDING)
+  requested_by  String        @db.Uuid
+  requested_at  DateTime      @default(now())
+  approved_by   String?       @db.Uuid
+  approved_at   DateTime?
+  notes         String?       @db.Text
+  created_at    DateTime      @default(now())
+  updated_at    DateTime      @updatedAt
+  deleted_at    DateTime?     @db.Timestamptz(6)
+
+  // Relations
+  branch    Branch @relation(fields: [branch_id], references: [branch_id], onDelete: Cascade)
+  approver  User?  @relation("fund_request_approver", fields: [approved_by], references: [user_id])
+  requester User?  @relation("fund_request_requester", fields: [requested_by], references: [user_id])
+
+  @@index([branch_id])
+  @@index([approved_by])
+  @@map("extra_fund_requests")
+  @@schema("financials")
+}
+
+enum BudgetStatus {
+  PENDING
+  ACTIVE
+  CLOSED
+  CANCELLED
+
+  @@schema("financials")
+}
+
+enum AllocationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  DISBURSED
+
+  @@schema("financials")
+}
+
+enum RequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+
+  @@schema("financials")
+}
+
+enum DisbursementStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  CANCELLED
+
+  @@schema("financials")
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+
+  @@schema("organizations")
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  REVIEW
+  COMPLETED
+  CANCELLED
+  ON_HOLD
+
+  @@schema("organizations")
+}
+
+enum TaskType {
+  PERSONAL
+  ASSIGNED
+  TEAM
+  PROJECT
+  FOLLOW_UP
+  OTHER
+
+  @@schema("organizations")
+}
+
+model Task {
+  task_id      String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title        String       @db.VarChar(100)
+  description  String?      @db.Text
+  status       TaskStatus   @default(TODO)
+  priority     TaskPriority @default(MEDIUM)
+  type         TaskType     @default(PERSONAL)
+  due_date     DateTime?
+  completed_at DateTime?
+  created_at   DateTime     @default(now())
+  updated_at   DateTime     @updatedAt
+  deleted_at   DateTime?    @db.Timestamptz(6)
+
+  // Task Assignment
+  assigned_by_id String  @db.Uuid
+  assigned_to_id String  @db.Uuid
+  company_id     String? @db.Uuid
+  department_id  String? @db.Uuid
+  project_id     String? @db.Uuid
+
+  // Task Metadata
+  estimated_hours Int?
+  actual_hours    Int?
+  progress        Int      @default(0)
+  is_recurring    Boolean  @default(false)
+  recurrence_rule String?  @db.VarChar(255)
+  parent_task_id  String?  @db.Uuid
+  tags            String[] @default([])
+
+  // Relations
+  assigned_by     User             @relation("assigned_tasks", fields: [assigned_by_id], references: [user_id])
+  assigned_to     User             @relation("received_tasks", fields: [assigned_to_id], references: [user_id])
+  company         Company?         @relation(fields: [company_id], references: [company_id])
+  department      Department?      @relation(fields: [department_id], references: [department_id])
+  parent_task     Task?            @relation("sub_tasks", fields: [parent_task_id], references: [task_id])
+  sub_tasks       Task[]           @relation("sub_tasks")
+  comments        TaskComment[]
+  attachments     TaskAttachment[]
+  calendar_events CalendarEvent[]
+
+  @@index([assigned_by_id])
+  @@index([assigned_to_id])
+  @@index([company_id])
+  @@index([department_id])
+  @@index([status])
+  @@index([priority])
+  @@index([type])
+  @@map("tasks")
+  @@schema("organizations")
+}
+
+model TaskComment {
+  comment_id String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  task_id    String    @db.Uuid
+  user_id    String    @db.Uuid
+  content    String    @db.Text
+  created_at DateTime  @default(now())
+  updated_at DateTime  @updatedAt
+  deleted_at DateTime? @db.Timestamptz(6)
+
+  // Relations
+  task Task @relation(fields: [task_id], references: [task_id], onDelete: Cascade)
+  user User @relation(fields: [user_id], references: [user_id], onDelete: Cascade)
+
+  @@index([task_id])
+  @@index([user_id])
+  @@map("task_comments")
+  @@schema("organizations")
+}
+
+model TaskAttachment {
+  attachment_id String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  task_id       String    @db.Uuid
+  file_id       String    @db.Uuid
+  created_at    DateTime  @default(now())
+  updated_at    DateTime  @updatedAt
+  deleted_at    DateTime? @db.Timestamptz(6)
+
+  // Relations
+  task Task  @relation(fields: [task_id], references: [task_id], onDelete: Cascade)
+  file Files @relation(fields: [file_id], references: [file_id], onDelete: Cascade)
+
+  @@index([task_id])
+  @@index([file_id])
+  @@map("task_attachments")
+  @@schema("organizations")
+}
+
+enum EventCategory {
+  STAFF_ATTENDANCE
+  STAFF_BREAK
+  STAFF_LEAVE
+  BUSINESS_HOURS
+
+  @@schema("organizations")
+}
+
+enum CustomerEventCategory {
+  CHECKIN
+  CHECKOUT
+  RESERVATION
+
+  @@schema("organizations")
+}
+
+enum EventStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+
+  @@schema("organizations")
+}
+
+model StaffEvent {
+  event_id String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  category EventCategory
+  status   EventStatus   @default(SCHEDULED)
+
+  // Staff Information
+  staff_id String @db.Uuid
+
+  // Timing Information
+  scheduled_start DateTime  @db.Timestamptz(6)
+  scheduled_end   DateTime? @db.Timestamptz(6)
+  actual_start    DateTime? @db.Timestamptz(6)
+  actual_end      DateTime? @db.Timestamptz(6)
+
+  // Business Context
+  company_id    String  @db.Uuid
+  branch_id     String? @db.Uuid
+  department_id String? @db.Uuid
+
+  // Additional Information
+  notes    String? @db.Text
+  metadata Json?
+
+  // Approval Tracking
+  is_approved Boolean   @default(false)
+  approved_by String?   @db.Uuid
+  approved_at DateTime? @db.Timestamptz(6)
+
+  created_at DateTime  @default(now())
+  updated_at DateTime  @updatedAt
+  deleted_at DateTime? @db.Timestamptz(6)
+
+  // Relations
+  staff      Staff       @relation(fields: [staff_id], references: [staff_id])
+  company    Company     @relation(fields: [company_id], references: [company_id])
+  branch     Branch?     @relation(fields: [branch_id], references: [branch_id])
+  department Department? @relation(fields: [department_id], references: [department_id])
+  approver   User?       @relation("staff_event_approver", fields: [approved_by], references: [user_id])
+
+  @@index([staff_id])
+  @@index([company_id])
+  @@index([branch_id])
+  @@index([department_id])
+  @@index([scheduled_start])
+  @@index([category])
+  @@index([status])
+  @@map("staff_events")
+  @@schema("organizations")
+}
+
+model DailyEvent {
+  event_id String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  category CustomerEventCategory
+  status   EventStatus           @default(SCHEDULED)
+
+  // Customer Information
+  customer_id String @db.Uuid
+
+  // Entity Information (Room, Table, etc.)
+  entity_type String @db.VarChar(50)
+  entity_id   String @db.Uuid
+
+  // Timing Information
+  scheduled_start DateTime  @db.Timestamptz(6)
+  scheduled_end   DateTime? @db.Timestamptz(6)
+  actual_start    DateTime? @db.Timestamptz(6)
+  actual_end      DateTime? @db.Timestamptz(6)
+
+  // Business Context
+  company_id String  @db.Uuid
+  branch_id  String? @db.Uuid
+
+  // Additional Information
+  notes    String? @db.Text
+  metadata Json?
+
+  // Customer Checkout Specific
+  checkout_status String?  @db.VarChar(50)
+  total_amount    Decimal? @db.Decimal(12, 2)
+  payment_status  String?  @db.VarChar(50)
+
+  created_at DateTime  @default(now())
+  updated_at DateTime  @updatedAt
+  deleted_at DateTime? @db.Timestamptz(6)
+
+  // Relations
+  customer User    @relation("customer_events", fields: [customer_id], references: [user_id])
+  company  Company @relation(fields: [company_id], references: [company_id])
+  branch   Branch? @relation(fields: [branch_id], references: [branch_id])
+
+  @@index([customer_id])
+  @@index([company_id])
+  @@index([branch_id])
+  @@index([scheduled_start])
+  @@index([category])
+  @@index([status])
+  @@map("daily_events")
+  @@schema("organizations")
+}
+
+enum ActivityType {
+  ORDER_COMPLETED
+  ORDER_CANCELLED
+  ORDER_REFUNDED
+  FUND_DISBURSED
+  FUND_ALLOCATION_REQUESTED
+  FUND_ALLOCATION_APPROVED
+  FUND_ALLOCATION_REJECTED
+  EXTRA_FUND_REQUESTED
+  EXTRA_FUND_APPROVED
+  EXTRA_FUND_REJECTED
+  STAFF_HIRED
+  STAFF_TERMINATED
+  STAFF_PROMOTED
+  STAFF_TRANSFERRED
+  PAYROLL_PROCESSED
+  PAYROLL_COMPLETED
+  PAYROLL_FAILED
+  INVENTORY_UPDATED
+  INVENTORY_LOW
+  INVENTORY_OUT_OF_STOCK
+  RISK_ALERT
+  WARNING
+  INVOICE_DUE
+  INVOICE_PAID
+  INVOICE_OVERDUE
+  INVOICE_CANCELLED
+  ORDER_RELATED
+  INVOICE_RELATED
+  ASSIGNED
+  CUSTOMER_CHECKIN
+  CUSTOMER_CHECKOUT
+  RESERVATION_CREATED
+  RESERVATION_CANCELLED
+  RESERVATION_COMPLETED
+  SYSTEM_NOTIFICATION
+  OTHER
+
+  @@schema("organizations")
+}
+
+enum ActivityCategory {
+  PAYMENT
+  ORDER
+  INVOICE
+  STAFF
+  INVENTORY
+  SYSTEM
+  CUSTOMER
+  FINANCIAL
+  SECURITY
+  OTHER
+
+  @@schema("organizations")
+}
+
+enum ActivityPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+
+  @@schema("organizations")
+}
+
+enum ActivityStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+  CANCELLED
+  REQUIRES_ATTENTION
+
+  @@schema("organizations")
+}
+
+enum ActivityStyle {
+  SUCCESS
+  WARNING
+  ERROR
+  INFO
+  NEUTRAL
+  HIGHLIGHT
+
+  @@schema("organizations")
+}
+
+enum ActivityActionType {
+  NONE
+  COPY
+  LINK
+  VIEW
+  DOWNLOAD
+  CUSTOM
+
+  @@schema("organizations")
+}
+
+model ActivityLog {
+  activity_id   String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  activity_type ActivityType
+  category      ActivityCategory
+  priority      ActivityPriority @default(MEDIUM)
+  status        ActivityStatus   @default(PENDING)
+  style         ActivityStyle    @default(NEUTRAL)
+  description   String           @db.Text
+
+  // Entity Information
+  entity_type String @db.VarChar(50) // e.g., "order", "fund", "staff", etc.
+  entity_id   String @db.Uuid // ID of the related entity
+
+  // Business Context
+  company_id    String  @db.Uuid
+  branch_id     String? @db.Uuid
+  department_id String? @db.Uuid
+
+  // Actor Information
+  performed_by_id   String @db.Uuid // User who performed the action
+  performed_by_type String @db.VarChar(50) // e.g., "staff", "system", "customer"
+
+  // Additional Data
+  metadata  Json? // Additional structured data
+  severity  String  @default("INFO") @db.VarChar(20) // INFO, WARNING, ERROR, CRITICAL
+  is_public Boolean @default(false) // Whether this activity is visible to all staff
+
+  // UI Styling
+  icon_name       String? @db.VarChar(50) // Icon to display (e.g., "money", "warning", "check")
+  color_scheme    String? @db.VarChar(50) // Color scheme for UI (e.g., "success", "warning", "error")
+  badge_text      String? @db.VarChar(50) // Text to show in badge/status indicator
+  requires_action Boolean @default(false) // Whether this activity requires user action
+
+  // New fields for richer UI
+  avatar_url     String?             @db.VarChar(255)
+  secondary_text String?             @db.VarChar(255)
+  action_type    ActivityActionType? @default(NONE)
+  action_value   String?             @db.VarChar(255)
+  badges         Json?
+  extra          Json?
+
+  created_at DateTime  @default(now())
+  updated_at DateTime  @updatedAt
+  deleted_at DateTime? @db.Timestamptz(6)
+
+  // Relations
+  company      Company     @relation(fields: [company_id], references: [company_id])
+  branch       Branch?     @relation(fields: [branch_id], references: [branch_id])
+  department   Department? @relation(fields: [department_id], references: [department_id])
+  performed_by User        @relation(fields: [performed_by_id], references: [user_id])
+
+  @@index([company_id])
+  @@index([branch_id])
+  @@index([department_id])
+  @@index([performed_by_id])
+  @@index([activity_type])
+  @@index([category])
+  @@index([priority])
+  @@index([status])
+  @@index([entity_type, entity_id])
+  @@index([created_at])
+  @@map("activity_logs")
   @@schema("organizations")
 }

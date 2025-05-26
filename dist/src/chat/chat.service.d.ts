@@ -16,9 +16,9 @@ export declare class ChatService {
             }[];
             sender: {
                 email: string;
-                user_id: string;
                 first_name: string | null;
                 last_name: string | null;
+                user_id: string;
             };
             created_at: Date;
             updated_at: Date;
@@ -38,9 +38,9 @@ export declare class ChatService {
         participants: ({
             user: {
                 email: string;
-                user_id: string;
                 first_name: string | null;
                 last_name: string | null;
+                user_id: string;
             };
         } & {
             is_active: boolean;
@@ -55,9 +55,9 @@ export declare class ChatService {
         updated_at: Date;
         deleted_at: Date | null;
         name: string | null;
+        avatar_url: string | null;
         chat_id: string;
         status: import(".prisma/client").$Enums.ChatStatus;
-        avatar_url: string | null;
         chat_type: import(".prisma/client").$Enums.ChatType;
     }>;
     getMessages({ chat_id, req_user, }: {
@@ -70,12 +70,12 @@ export declare class ChatService {
                 updated_at: Date;
                 deleted_at: Date | null;
                 email: string;
-                user_id: string;
                 first_name: string | null;
                 last_name: string | null;
+                phone_number: string | null;
+                user_id: string;
                 password: string | null;
                 date_of_birth: Date;
-                phone_number: string | null;
                 backup_phone_number: string | null;
                 email_verified: boolean | null;
                 phone_verified: boolean | null;
@@ -138,9 +138,9 @@ export declare class ChatService {
         participants: ({
             user: {
                 email: string;
-                user_id: string;
                 first_name: string | null;
                 last_name: string | null;
+                user_id: string;
             };
         } & {
             is_active: boolean;
@@ -154,9 +154,9 @@ export declare class ChatService {
         created_at: Date;
         updated_at: Date;
         deleted_at: Date | null;
+        avatar_url: string | null;
         chat_id: string;
         status: import(".prisma/client").$Enums.ChatStatus;
-        avatar_url: string | null;
         chat_type: import(".prisma/client").$Enums.ChatType;
     }[]>;
     isParticipant(chat_id: string, user_id: string): Promise<boolean>;
@@ -174,12 +174,12 @@ export declare class ChatService {
             updated_at: Date;
             deleted_at: Date | null;
             email: string;
-            user_id: string;
             first_name: string | null;
             last_name: string | null;
+            phone_number: string | null;
+            user_id: string;
             password: string | null;
             date_of_birth: Date;
-            phone_number: string | null;
             backup_phone_number: string | null;
             email_verified: boolean | null;
             phone_verified: boolean | null;
@@ -226,9 +226,9 @@ export declare class ChatService {
         participants: ({
             user: {
                 email: string;
-                user_id: string;
                 first_name: string | null;
                 last_name: string | null;
+                user_id: string;
             };
         } & {
             is_active: boolean;
@@ -244,9 +244,9 @@ export declare class ChatService {
         updated_at: Date;
         deleted_at: Date | null;
         name: string | null;
+        avatar_url: string | null;
         chat_id: string;
         status: import(".prisma/client").$Enums.ChatStatus;
-        avatar_url: string | null;
         chat_type: import(".prisma/client").$Enums.ChatType;
     }>;
     getChatType({ chat_id, user_id }: {
@@ -264,12 +264,12 @@ export declare class ChatService {
             updated_at: Date;
             deleted_at: Date | null;
             email: string;
-            user_id: string;
             first_name: string | null;
             last_name: string | null;
+            phone_number: string | null;
+            user_id: string;
             password: string | null;
             date_of_birth: Date;
-            phone_number: string | null;
             backup_phone_number: string | null;
             email_verified: boolean | null;
             phone_verified: boolean | null;
@@ -308,12 +308,12 @@ export declare class ChatService {
             updated_at: Date;
             deleted_at: Date | null;
             email: string;
-            user_id: string;
             first_name: string | null;
             last_name: string | null;
+            phone_number: string | null;
+            user_id: string;
             password: string | null;
             date_of_birth: Date;
-            phone_number: string | null;
             backup_phone_number: string | null;
             email_verified: boolean | null;
             phone_verified: boolean | null;
@@ -350,12 +350,12 @@ export declare class ChatService {
                 updated_at: Date;
                 deleted_at: Date | null;
                 email: string;
-                user_id: string;
                 first_name: string | null;
                 last_name: string | null;
+                phone_number: string | null;
+                user_id: string;
                 password: string | null;
                 date_of_birth: Date;
-                phone_number: string | null;
                 backup_phone_number: string | null;
                 email_verified: boolean | null;
                 phone_verified: boolean | null;
@@ -381,9 +381,9 @@ export declare class ChatService {
         updated_at: Date;
         deleted_at: Date | null;
         name: string | null;
+        avatar_url: string | null;
         chat_id: string;
         status: import(".prisma/client").$Enums.ChatStatus;
-        avatar_url: string | null;
         chat_type: import(".prisma/client").$Enums.ChatType;
     }) | null>;
     getMessageStatus({ message_id }: {
@@ -393,9 +393,9 @@ export declare class ChatService {
         status: import(".prisma/client").$Enums.MessageStatus;
         read_receipts: ({
             user: {
-                user_id: string;
                 first_name: string | null;
                 last_name: string | null;
+                user_id: string;
             };
         } & {
             user_id: string;
@@ -415,12 +415,12 @@ export declare class ChatService {
             updated_at: Date;
             deleted_at: Date | null;
             email: string;
-            user_id: string;
             first_name: string | null;
             last_name: string | null;
+            phone_number: string | null;
+            user_id: string;
             password: string | null;
             date_of_birth: Date;
-            phone_number: string | null;
             backup_phone_number: string | null;
             email_verified: boolean | null;
             phone_verified: boolean | null;
@@ -458,9 +458,9 @@ export declare class ChatService {
         participants: ({
             user: {
                 email: string;
-                user_id: string;
                 first_name: string | null;
                 last_name: string | null;
+                user_id: string;
             };
         } & {
             is_active: boolean;
@@ -476,17 +476,17 @@ export declare class ChatService {
         updated_at: Date;
         deleted_at: Date | null;
         name: string | null;
+        avatar_url: string | null;
         chat_id: string;
         status: import(".prisma/client").$Enums.ChatStatus;
-        avatar_url: string | null;
         chat_type: import(".prisma/client").$Enums.ChatType;
     }>;
     getChatMessages(chat_id: string): Promise<({
         sender: {
             email: string;
-            user_id: string;
             first_name: string | null;
             last_name: string | null;
+            user_id: string;
         };
     } & {
         created_at: Date;
@@ -509,9 +509,9 @@ export declare class ChatService {
     }): Promise<({
         sender: {
             email: string;
-            user_id: string;
             first_name: string | null;
             last_name: string | null;
+            user_id: string;
         };
     } & {
         created_at: Date;
@@ -534,9 +534,9 @@ export declare class ChatService {
         messages: ({
             sender: {
                 email: string;
-                user_id: string;
                 first_name: string | null;
                 last_name: string | null;
+                user_id: string;
             };
         } & {
             created_at: Date;
@@ -557,9 +557,9 @@ export declare class ChatService {
         participants: ({
             user: {
                 email: string;
-                user_id: string;
                 first_name: string | null;
                 last_name: string | null;
+                user_id: string;
             };
         } & {
             is_active: boolean;
@@ -575,9 +575,9 @@ export declare class ChatService {
         updated_at: Date;
         deleted_at: Date | null;
         name: string | null;
+        avatar_url: string | null;
         chat_id: string;
         status: import(".prisma/client").$Enums.ChatStatus;
-        avatar_url: string | null;
         chat_type: import(".prisma/client").$Enums.ChatType;
     }) | null>;
 }

@@ -9,9 +9,9 @@ export declare class ChatController {
         updated_at: Date;
         deleted_at: Date | null;
         name: string | null;
+        avatar_url: string | null;
         chat_id: string;
         status: import(".prisma/client").$Enums.ChatStatus;
-        avatar_url: string | null;
         chat_type: import(".prisma/client").$Enums.ChatType;
     } | {
         message: string;
@@ -44,9 +44,9 @@ export declare class ChatController {
         participants: ({
             user: {
                 email: string;
-                user_id: string;
                 first_name: string | null;
                 last_name: string | null;
+                user_id: string;
             };
         } & {
             is_active: boolean;
@@ -60,9 +60,9 @@ export declare class ChatController {
         created_at: Date;
         updated_at: Date;
         deleted_at: Date | null;
+        avatar_url: string | null;
         chat_id: string;
         status: import(".prisma/client").$Enums.ChatStatus;
-        avatar_url: string | null;
         chat_type: import(".prisma/client").$Enums.ChatType;
     }[]>;
     getMessages(chat_id: string, req: UserAuthorizedRequest): Promise<({
@@ -72,12 +72,12 @@ export declare class ChatController {
                 updated_at: Date;
                 deleted_at: Date | null;
                 email: string;
-                user_id: string;
                 first_name: string | null;
                 last_name: string | null;
+                phone_number: string | null;
+                user_id: string;
                 password: string | null;
                 date_of_birth: Date;
-                phone_number: string | null;
                 backup_phone_number: string | null;
                 email_verified: boolean | null;
                 phone_verified: boolean | null;
@@ -113,9 +113,9 @@ export declare class ChatController {
     getLastMessage(chat_id: string, req: UserAuthorizedRequest): Promise<({
         sender: {
             email: string;
-            user_id: string;
             first_name: string | null;
             last_name: string | null;
+            user_id: string;
         };
     } & {
         created_at: Date;

@@ -1,0 +1,346 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Invoice from Profibook</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        background-color: #fafafa;
+        font-family: Arial, sans-serif;
+      }
+      .container {
+        width: 95%;
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 32px;
+        background-color: #fafafa;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      td {
+        vertical-align: top;
+      }
+      .main-content {
+        width: 70%;
+        background-color: white;
+        padding: 32px;
+        border-radius: 12px;
+      }
+      .sidebar {
+        width: 30%;
+        padding-left: 28px;
+      }
+      .section {
+        background-color: white;
+        padding: 32px;
+        border-radius: 12px;
+        margin-bottom: 16px;
+      }
+      .header {
+        margin-bottom: 24px;
+      }
+      .title {
+        font-size: 24px;
+        font-weight: 600;
+        color: #000;
+        margin: 0;
+      }
+      .info-grid {
+        margin-bottom: 24px;
+      }
+      .user-info {
+        margin-bottom: 16px;
+      }
+      .user-header {
+        margin-bottom: 16px;
+      }
+      .avatar {
+        width: 56px;
+        height: 56px;
+        border-radius: 50%;
+        background-color: #e4e4e7;
+        display: inline-block;
+        vertical-align: middle;
+        margin-right: 16px;
+      }
+      .user-details {
+        display: inline-block;
+        vertical-align: middle;
+      }
+      .user-name {
+        font-size: 18px;
+        font-weight: 600;
+        color: #000;
+        margin: 0;
+      }
+      .user-role {
+        color: #737373;
+        margin: 4px 0 0 0;
+      }
+      .contact-info {
+        margin-top: 16px;
+      }
+      .icon {
+        display: inline-block;
+        width: 24px;
+        color: #cacace;
+        vertical-align: middle;
+        margin-right: 16px;
+      }
+      .info-text {
+        display: inline-block;
+        vertical-align: middle;
+      }
+      .info-label {
+        color: #737373;
+        margin: 0;
+      }
+      .info-value {
+        color: #000;
+        font-weight: 500;
+        margin: 4px 0 0 0;
+      }
+      .invoice-details {
+        background-color: #e4e4e7;
+        padding: 16px;
+        border-radius: 12px;
+      }
+      .divider {
+        height: 1px;
+        background-color: #e4e4e7;
+        margin: 24px 0;
+      }
+      .items-header {
+        margin-bottom: 16px;
+      }
+      .item {
+        margin-bottom: 16px;
+      }
+      .item-box {
+        border: 1px solid #e4e4e7;
+        padding: 16px;
+        border-radius: 12px;
+        font-weight: 600;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+      }
+      .totals {
+        padding: 16px;
+        border-radius: 12px;
+      }
+      .total-row {
+        margin-bottom: 16px;
+      }
+      .total-label {
+        font-weight: 600;
+        color: #70707a;
+        display: inline-block;
+        width: 70%;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+      }
+      .total-value {
+        font-weight: 600;
+        display: inline-block;
+        width: 30%;
+        text-align: right;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+      }
+      .amount-due {
+        font-size: 36px;
+        font-weight: 600;
+        margin: 16px 0;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+      }
+      .due-date {
+        display: inline-block;
+        padding: 8px 12px;
+        background-color: #fedada;
+        color: #fa5f45;
+        border-radius: 9999px;
+        font-weight: 600;
+        text-transform: uppercase;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+      }
+      .footer {
+        margin-top: 32px;
+        text-align: center;
+        color: #3b080d;
+        font-size: 12px;
+      }
+      @media screen and (max-width: 768px) {
+        .container {
+          padding: 16px;
+        }
+        .main-content,
+        .sidebar {
+          width: 100% !important;
+          padding: 16px;
+          display: block;
+        }
+        .sidebar {
+          padding-left: 0;
+          margin-top: 16px;
+        }
+        .title {
+          font-size: 20px;
+        }
+        .amount-due {
+          font-size: 28px;
+        }
+        .item-box {
+          padding: 12px;
+        }
+        .total-label,
+        .total-value {
+          width: 100%;
+          text-align: left;
+        }
+        .total-value {
+          margin-top: 4px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <table>
+        <tr>
+          <td class="main-content">
+            <div class="header">
+              <h2 class="title">From</h2>
+            </div>
+
+            <div class="info-grid">
+              <div class="user-info">
+                <div class="user-header">
+                  <div class="user-details">
+                    <div class="user-name">${invoice.sender}</div>
+                    <div class="user-role">Business Owner</div>
+                  </div>
+                </div>
+
+                <div class="contact-info">
+                  <div class="icon">📧</div>
+                  <div class="info-text">
+                    <div class="info-label">Email</div>
+                    <div class="info-value">${invoice.sender}</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="invoice-details">
+                <div>Invoice Number</div>
+                <div>${invoice.invoice_number}</div>
+                <div class="info-label">Issued Date</div>
+                <div>
+                  ${new Date(invoice.invoice_date).toLocaleDateString()}
+                </div>
+                <div class="info-label">Due Date</div>
+                <div>${new Date(invoice.due_date).toLocaleDateString()}</div>
+              </div>
+            </div>
+
+            <div class="divider"></div>
+
+            <div class="items-header">
+              <table>
+                <tr>
+                  <td width="80%"><div class="title">Items</div></td>
+                  <td width="20%"><div class="title">Total</div></td>
+                </tr>
+              </table>
+            </div>
+
+            ${invoice.invoice_items.map((item) => `
+            <div class="item">
+              <table>
+                <tr>
+                  <td width="80%">
+                    <div class="item-box">${item.item_name}</div>
+                  </td>
+                  <td width="20%">
+                    <div class="item-box">$${item.price.toFixed(2)}</div>
+                  </td>
+                </tr>
+              </table>
+            </div>
+            `).join('')}
+
+            <div class="divider"></div>
+
+            <div class="totals">
+              <div class="total-row">
+                <div class="total-label">Subtotal</div>
+                <div class="total-value">$${subtotal.toFixed(2)}</div>
+              </div>
+              <div class="total-row">
+                <div class="total-label">
+                  Taxes (${invoice.service_tax_fee}%)
+                </div>
+                <div class="total-value">$${taxAmount.toFixed(2)}</div>
+              </div>
+              <div class="divider"></div>
+              <div class="total-row">
+                <div class="total-label">Total</div>
+                <div class="total-value">$${total.toFixed(2)}</div>
+              </div>
+            </div>
+          </td>
+
+          <td class="sidebar">
+            <div class="section">
+              <div class="header">
+                <h2 class="title">To</h2>
+              </div>
+              <div class="user-info">
+                <div class="user-header">
+                  <div class="user-details">
+                    <div class="user-name">${invoice.recipient}</div>
+                    <div class="user-role">Client</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="section">
+              <div class="header">
+                <h2 class="title">Amount Due</h2>
+              </div>
+              <div class="amount-due">$${total.toFixed(2)}</div>
+              <div class="due-date">
+                Due on ${new Date(invoice.due_date).toLocaleDateString()}
+              </div>
+            </div>
+          </td>
+        </tr>
+      </table>
+
+      <div class="footer">
+        <p>
+          Profibook is a trusted all-in-one platform to seamlessly book, manage,
+          and deliver on-site and fixed-location services
+        </p>
+        <p style="font-size: 11px; color: #3b080d">
+          This email and any files transmitted with it are confidential and
+          intended solely for the use of the individual or entity to whom they
+          are addressed. If you have received this email in error, please notify
+          the sender immediately and delete this email from your system. Any
+          unauthorized copying, disclosure, or distribution of the material in
+          this email is strictly prohibited and may be unlawful.
+          <br /><br />
+          Profibook, Inc.
+          <br />
+          1111B S Governors Ave STE 26272 Dover, DE, 19904 US
+        </p>
+      </div>
+    </div>
+  </body>
+</html>

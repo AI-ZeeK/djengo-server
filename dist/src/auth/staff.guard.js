@@ -39,12 +39,10 @@ let StaffAuthGuard = class StaffAuthGuard {
             if (!user) {
                 throw new common_1.UnauthorizedException('Invalid user ID');
             }
-            if (!payload.staff_id) {
-                throw new common_1.UnauthorizedException('Staff ID is required');
-            }
-            const staff = await this.prisma.staff.findUnique({
+            const staff = await this.prisma.staff.findFirst({
                 where: {
-                    staff_id: payload.staff_id,
+                    user_id: payload.user_id,
+                    is_active: true,
                 },
             });
             if (!staff) {
@@ -52,9 +50,9 @@ let StaffAuthGuard = class StaffAuthGuard {
             }
             request['user'] = {
                 user_id: payload.user_id,
-                staff_id: payload.staff_id,
+                staff_id: staff.staff_id,
             };
-            const newToken = await this.jwtService.signAsync({ user_id: payload.user_id, staff_id: payload.staff_id }, {
+            const newToken = await this.jwtService.signAsync({ user_id: payload.user_id, staff_id: staff.staff_id }, {
                 secret: process.env.JWT_ACCESS_SECRET,
                 expiresIn: process.env.JWT_ACCESS_EXPIRATION,
             });

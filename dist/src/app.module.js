@@ -25,6 +25,9 @@ const file_module_1 = require("./file/file.module");
 const notification_module_1 = require("./notification/notification.module");
 const request_logger_middleware_1 = require("./middleware/request-logger.middleware");
 const chat_module_1 = require("./chat/chat.module");
+const user_role_module_1 = require("./roles/user_role/user_role.module");
+const organization_role_module_1 = require("./roles/organization_role/organization_role.module");
+const organization_module_1 = require("./organization/organization.module");
 let AppModule = class AppModule {
     configure(consumer) {
         consumer.apply(request_logger_middleware_1.RequestLoggerMiddleware).forRoutes('*');
@@ -46,6 +49,9 @@ exports.AppModule = AppModule = __decorate([
             file_module_1.FileModule,
             notification_module_1.NotificationModule,
             chat_module_1.ChatModule,
+            user_role_module_1.UserRoleModule,
+            organization_role_module_1.OrganizationRoleModule,
+            organization_module_1.OrganizationModule,
         ],
         controllers: [app_controller_1.AppController, chat_controller_1.ChatController],
         providers: [app_service_1.AppService, chat_gateway_1.ChatGateway, chat_service_1.ChatService, jwt_1.JwtService],

@@ -8,6 +8,7 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { ADDRESS_TYPE_ENUM, FILE_ENTITY_TYPE_ENUM } from 'prisma/enum';
 import { UserAuthorizedRequest } from 'src/interfaces/user.interface';
 import { ChatType, Prisma, User } from '@prisma/client';
+import { UpdateUserDto } from './dto/create-user.dto';
 
 type UserWithAvatar<T = {}> = User & {
   avatar_url: string | null;
@@ -39,7 +40,7 @@ export class UserService {
               is_active: true,
             },
           },
-
+          business_users: true,
           ...include,
         },
       });
@@ -73,14 +74,18 @@ export class UserService {
         },
       });
 
+      const user_role = userData.user_roles.find((role) => role.is_active);
+
+      const business_user = userData.business_users.find(
+        (user) => user.is_active,
+      );
+
       return {
         ...userData,
         address,
         avatar_url: avatarFile?.file_url || null,
-        user_role:
-          Array.isArray(userData.user_roles) && userData.user_roles.length
-            ? userData.user_roles[0]
-            : null,
+        user_role: user_role,
+        business_user: business_user,
       };
     } catch (error) {
       throw new BadRequestException(error.message);
@@ -193,6 +198,128 @@ export class UserService {
       }
 
       return userContacts;
+    } catch (error) {
+      throw new BadRequestException(error.message);
+    }
+  }
+
+  async updateUser({
+    req_user,
+    data,
+  }: {
+    req_user: UserAuthorizedRequest;
+    data: UpdateUserDto;
+  }) {
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        // Update user basic info
+        const user = await tx.user.update({
+          where: { user_id: req_user.user.user_id },
+          data: {
+            first_name: data.first_name,
+            last_name: data.last_name,
+            email: data.email,
+            phone_number: data.phone_number,
+          },
+        });
+
+        // Handle address update if provided
+        if (data.address) {
+          const address_entity = await tx.addressEntity.findFirst({
+            where: {
+              entity_type: ADDRESS_TYPE_ENUM.USER_HOME,
+            },
+          });
+          if (!address_entity) {
+            throw new BadRequestException('Address entity not found');
+          }
+
+          const address = await tx.address.findFirst({
+            where: {
+              entity_id: user.user_id,
+              entity_type_id: address_entity.entity_type_id,
+            },
+          });
+
+          if (!address) {
+            await tx.address.create({
+              data: {
+                entity_id: user.user_id,
+                entity_type_id: address_entity.entity_type_id,
+                street: data.address.street,
+                building: data.address.building,
+                apartment: data.address.apartment,
+                district: data.address.district,
+                city: data.address.city,
+                state: data.address.state,
+                postal_code: data.address.postal_code,
+                country: data.address.country,
+                landmark: data.address.landmark,
+                direction_url: data.address.direction_url,
+                latitude: data.address.latitude,
+                longitude: data.address.longitude,
+              },
+            });
+          } else {
+            await tx.address.update({
+              where: { address_id: address.address_id },
+              data: {
+                street: data.address.street,
+                building: data.address.building,
+                apartment: data.address.apartment,
+                district: data.address.district,
+                city: data.address.city,
+                state: data.address.state,
+                postal_code: data.address.postal_code,
+                country: data.address.country,
+                landmark: data.address.landmark,
+                direction_url: data.address.direction_url,
+                latitude: data.address.latitude,
+                longitude: data.address.longitude,
+              },
+            });
+          }
+        }
+
+        // Handle avatar update if provided
+        if (data.avatar_url) {
+          const fileEntityType = await tx.fileEntityType.findFirst({
+            where: {
+              entity_type: FILE_ENTITY_TYPE_ENUM.USER_AVATAR,
+            },
+          });
+          if (!fileEntityType) {
+            throw new BadRequestException('File entity type not found');
+          }
+
+          const file = await tx.files.findFirst({
+            where: {
+              file_url: data.avatar_url,
+              entity_id: user.user_id,
+              entity_type_id: fileEntityType.entity_type_id,
+            },
+          });
+
+          if (!file) {
+            await tx.files.create({
+              data: {
+                file_url: data.avatar_url,
+                entity_id: user.user_id,
+                entity_type_id: fileEntityType.entity_type_id,
+              },
+            });
+          } else {
+            await tx.files.update({
+              where: { file_id: file.file_id },
+              data: {
+                file_url: data.avatar_url,
+              },
+            });
+          }
+        }
+
+        return user;
+      });
     } catch (error) {
       throw new BadRequestException(error.message);
     }
