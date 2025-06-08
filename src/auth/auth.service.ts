@@ -236,6 +236,7 @@ export class AuthService {
                 access_type: BusinessAccessType.CREATOR,
                 access_level: 1,
                 is_active: true,
+                email: user.email,
               },
             });
           }
