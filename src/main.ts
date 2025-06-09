@@ -8,11 +8,7 @@ import { HttpExceptionFilter } from './middleware/filters/http-exception.filter'
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
-    logger:
-      process.env.NODE_ENV === 'production'
-        ? ['error', 'warn', 'log']
-        : ['error', 'warn', 'log', 'debug', 'verbose'],
-    bufferLogs: true,
+    logger: ['error', 'warn', 'log', 'debug', 'verbose'],
   });
 
   app.useGlobalPipes(
@@ -43,9 +39,8 @@ async function bootstrap() {
   SwaggerModule.setup('swagger', app, document);
 
   const PORT = Number(process.env.PORT) || 8080;
-  const HOST = process.env.HOST || '0.0.0.0';
 
-  await app.listen(PORT, HOST);
-  console.log(`Application is running on http://${HOST}:${PORT}`);
+  await app.listen(PORT);
+  console.log(`Application is running on ${await app.getUrl()}`);
 }
 bootstrap();

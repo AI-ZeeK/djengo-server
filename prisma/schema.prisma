@@ -274,7 +274,7 @@ model Organization {
 model BusinessUser {
   business_user_id String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   user_id          String             @db.Uuid
-  email            String             @unique @db.VarChar(255)
+  email            String             @unique @db.VarChar(255) @default("")
   phone_number     String?            @unique @db.VarChar(20)
   organization_id  String             @db.Uuid
   access_type      BusinessAccessType @default(CREATOR)
