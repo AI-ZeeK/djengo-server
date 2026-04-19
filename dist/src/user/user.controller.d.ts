@@ -40,6 +40,8 @@ export declare class UserController {
             created_at: Date;
             updated_at: Date;
             deleted_at: Date | null;
+            email: string;
+            phone_number: string | null;
             user_id: string;
             business_user_id: string;
             organization_id: string;
@@ -301,6 +303,8 @@ export declare class UserController {
             created_at: Date;
             updated_at: Date;
             deleted_at: Date | null;
+            email: string;
+            phone_number: string | null;
             user_id: string;
             business_user_id: string;
             organization_id: string;

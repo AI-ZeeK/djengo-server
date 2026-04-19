@@ -46,7 +46,7 @@ let FileService = FileService_1 = class FileService {
                     overwrite: true,
                 }, (error, result) => {
                     if (error)
-                        return reject(error);
+                        return reject(new Error(error.message));
                     if (!result?.secure_url) {
                         reject(new Error('Failed to get secure URL from upload'));
                         return;
@@ -58,8 +58,9 @@ let FileService = FileService_1 = class FileService {
             });
         }
         catch (error) {
-            this.logger.error(`Error uploading file: ${error.message}`);
-            throw new common_1.BadRequestException(`Failed to upload file: ${error.message}`);
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            this.logger.error(`Error uploading file: ${errorMessage}`);
+            throw new common_1.BadRequestException(`Failed to upload file: ${errorMessage}`);
         }
     }
     async uploadBase64File(base64Data, fileType, userId) {
@@ -83,7 +84,11 @@ let FileService = FileService_1 = class FileService {
                     overwrite: true,
                 }, (error, result) => {
                     if (error)
-                        return reject(error);
+                        return reject(new Error(error.message));
+                    if (!result) {
+                        reject(new Error('Failed to get result from upload'));
+                        return;
+                    }
                     resolve(result);
                 });
             });
@@ -91,8 +96,9 @@ let FileService = FileService_1 = class FileService {
             return uploadResult.secure_url;
         }
         catch (error) {
-            this.logger.error(`Error uploading file: ${error.message}`);
-            throw new common_1.BadRequestException(`Failed to upload file: ${error.message}`);
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            this.logger.error(`Error uploading file: ${errorMessage}`);
+            throw new common_1.BadRequestException(`Failed to upload file: ${errorMessage}`);
         }
     }
     async deleteFile(fileUrl) {
@@ -104,18 +110,21 @@ let FileService = FileService_1 = class FileService {
                 .slice(urlParts.indexOf('djengo'), urlParts.length - 1)
                 .join('/');
             const fullPublicId = `${folderPath}/${publicId}`;
-            const result = await new Promise((resolve, reject) => {
-                cloudinary_1.v2.uploader.destroy(fullPublicId, { resource_type: fileUrl.includes('/audio/') ? 'video' : 'image' }, (error, result) => {
-                    if (error)
-                        return reject(error);
-                    resolve(result);
+            await new Promise((resolve, reject) => {
+                cloudinary_1.v2.uploader.destroy(fullPublicId, { resource_type: fileUrl.includes('/audio/') ? 'video' : 'image' }, (error) => {
+                    if (error) {
+                        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+                        return reject(new Error(errorMessage));
+                    }
+                    resolve();
                 });
             });
             this.logger.log(`File deleted successfully: ${fullPublicId}`);
         }
         catch (error) {
-            this.logger.error(`Error deleting file: ${error.message}`);
-            throw new common_1.BadRequestException(`Failed to delete file: ${error.message}`);
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            this.logger.error(`Error deleting file: ${errorMessage}`);
+            throw new common_1.BadRequestException(`Failed to delete file: ${errorMessage}`);
         }
     }
     async uploadMultipleFiles(files, userId) {
@@ -134,7 +143,7 @@ let FileService = FileService_1 = class FileService {
                         overwrite: true,
                     }, (error, result) => {
                         if (error)
-                            return reject(error);
+                            return reject(new Error(error.message));
                         if (!result) {
                             reject(new Error('Failed to get result from upload'));
                             return;
@@ -170,7 +179,7 @@ let FileService = FileService_1 = class FileService {
                         overwrite: true,
                     }, (error, result) => {
                         if (error)
-                            return reject(error);
+                            return reject(new Error(error.message));
                         if (!result) {
                             reject(new Error('Failed to get result from upload'));
                             return;

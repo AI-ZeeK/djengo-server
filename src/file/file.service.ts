@@ -63,7 +63,7 @@ export class FileService {
             overwrite: true,
           },
           (error, result) => {
-            if (error) return reject(error);
+            if (error) return reject(new Error(error.message));
             if (!result?.secure_url) {
               reject(new Error('Failed to get secure URL from upload'));
               return;
@@ -78,8 +78,10 @@ export class FileService {
         stream.pipe(uploadStream);
       });
     } catch (error) {
-      this.logger.error(`Error uploading file: ${error.message}`);
-      throw new BadRequestException(`Failed to upload file: ${error.message}`);
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      this.logger.error(`Error uploading file: ${errorMessage}`);
+      throw new BadRequestException(`Failed to upload file: ${errorMessage}`);
     }
   }
 
@@ -118,27 +120,35 @@ export class FileService {
       const folder = `djengo/${fileType}s/${userId}`;
 
       // Upload to Cloudinary
-      const uploadResult = await new Promise<any>((resolve, reject) => {
-        cloudinary.uploader.upload(
-          base64Data,
-          {
-            folder,
-            resource_type: fileType === 'audio' ? 'video' : 'image',
-            overwrite: true,
-          },
-          (error, result) => {
-            if (error) return reject(error);
-            resolve(result);
-          },
-        );
-      });
+      const uploadResult = await new Promise<UploadApiResponse>(
+        (resolve, reject) => {
+          cloudinary.uploader.upload(
+            base64Data,
+            {
+              folder,
+              resource_type: fileType === 'audio' ? 'video' : 'image',
+              overwrite: true,
+            },
+            (error, result) => {
+              if (error) return reject(new Error(error.message));
+              if (!result) {
+                reject(new Error('Failed to get result from upload'));
+                return;
+              }
+              resolve(result);
+            },
+          );
+        },
+      );
 
       this.logger.log(`File uploaded successfully: ${uploadResult.secure_url}`);
 
       return uploadResult.secure_url;
     } catch (error) {
-      this.logger.error(`Error uploading file: ${error.message}`);
-      throw new BadRequestException(`Failed to upload file: ${error.message}`);
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      this.logger.error(`Error uploading file: ${errorMessage}`);
+      throw new BadRequestException(`Failed to upload file: ${errorMessage}`);
     }
   }
 
@@ -160,21 +170,27 @@ export class FileService {
       const fullPublicId = `${folderPath}/${publicId}`;
 
       // Delete from Cloudinary
-      const result = await new Promise<any>((resolve, reject) => {
+      await new Promise<void>((resolve, reject) => {
         cloudinary.uploader.destroy(
           fullPublicId,
           { resource_type: fileUrl.includes('/audio/') ? 'video' : 'image' },
-          (error, result) => {
-            if (error) return reject(error);
-            resolve(result);
+          (error) => {
+            if (error) {
+              const errorMessage =
+                error instanceof Error ? error.message : 'Unknown error';
+              return reject(new Error(errorMessage));
+            }
+            resolve();
           },
         );
       });
 
       this.logger.log(`File deleted successfully: ${fullPublicId}`);
     } catch (error) {
-      this.logger.error(`Error deleting file: ${error.message}`);
-      throw new BadRequestException(`Failed to delete file: ${error.message}`);
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      this.logger.error(`Error deleting file: ${errorMessage}`);
+      throw new BadRequestException(`Failed to delete file: ${errorMessage}`);
     }
   }
 
@@ -203,7 +219,7 @@ export class FileService {
                 overwrite: true,
               },
               (error, result) => {
-                if (error) return reject(error);
+                if (error) return reject(new Error(error.message));
                 if (!result) {
                   reject(new Error('Failed to get result from upload'));
                   return;
@@ -258,7 +274,7 @@ export class FileService {
                 overwrite: true,
               },
               (error, result) => {
-                if (error) return reject(error);
+                if (error) return reject(new Error(error.message));
                 if (!result) {
                   reject(new Error('Failed to get result from upload'));
                   return;

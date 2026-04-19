@@ -187,6 +187,7 @@ let AuthService = AuthService_1 = class AuthService {
                                 access_type: client_1.BusinessAccessType.CREATOR,
                                 access_level: 1,
                                 is_active: true,
+                                email: user.email,
                             },
                         });
                     }
